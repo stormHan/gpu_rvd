@@ -36,8 +36,19 @@ namespace Gpu_Rvd{
 			fprintf(stderr, "dimension not right when adding vertex");
 			return;
 		}
-		for (index_t i = 0; i < dim; ++i){
+		for (coords_index_t i = 0; i < dim; ++i){
 			vertexd_.push_back(p[i]);
+		}
+		vertex_nb_++;
+	}
+
+	void Points::add_vertexd(const std::vector<double>& p){
+		if (p.size() != dimension_){
+			fprintf(stderr, "dimension not right when adding vertex");
+			return;
+		}
+		for (coords_index_t c = 0; c < dimension_; ++c){
+			vertexd_.push_back(p[c]);
 		}
 		vertex_nb_++;
 	}
@@ -53,9 +64,21 @@ namespace Gpu_Rvd{
 	void Mesh::add_facet(const index_t* p, index_t dim){
 		if (dim != dimension_){
 			fprintf(stderr, "dimension not right when adding facet");
+			return;
 		}
 		for (index_t i = 0; i < dim; ++i){
 			facet_.push_back(p[i]);
+		}
+		facet_nb_++;
+	}
+
+	void Mesh::add_facet(const std::vector<index_t>& p){
+		if (p.size() != dimension_){
+			fprintf(stderr, "dimension not right when adding facet");
+			return;
+		}
+		for (coords_index_t c = 0; c < dimension_; ++c){
+			facet_.push_back(p[c]);
 		}
 		facet_nb_++;
 	}
