@@ -6,7 +6,7 @@
 
 namespace Gpu_Rvd{
 	namespace Cmd{
-		bool parse_argu(int argument_nb, char** argument, std::vector<std::string>& filenames, Mode& mode){
+		bool parse_argu(index_t argument_nb, char** argument, std::vector<std::string>& filenames, Mode& mode){
 			if (argument_nb <= 1){
 				fprintf(stderr, "no argument pointed to filenames!");
 				return false;
