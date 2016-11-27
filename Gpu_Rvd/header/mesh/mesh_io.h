@@ -8,7 +8,9 @@
 #define MESH_MESH_IO_H
 
 #include <basic\common.h>
-#
+#include <basic\line_stream.h>
+#include <mesh\mesh.h>
+
 
 namespace Gpu_Rvd{
 
@@ -23,8 +25,10 @@ namespace Gpu_Rvd{
 	meshpoints : true	-- load a mesh
 	flase	-- load points, just vertices
 	*/
-	bool mesh_load(const std::string _filepath, Mesh& _M, bool _meshpoints = true, FileType _filetype = OBJfile);
+	bool mesh_load_obj(const std::string filename, Mesh& M);
 
+
+	bool points_load_obj(const std::string filename, Points& M);
 	/*
 	save the mesh.
 	*/
