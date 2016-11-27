@@ -55,7 +55,7 @@ namespace Gpu_Rvd{
 		inline bool from_string(const char* s, double& value){
 			char* end;
 			value = strtod(s, &end);
-			return end != s && end == '\0';
+			return end != s && *end == '\0';
 		}
 
 		/**
