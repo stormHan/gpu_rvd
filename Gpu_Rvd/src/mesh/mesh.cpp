@@ -53,10 +53,50 @@ namespace Gpu_Rvd{
 		vertex_nb_++;
 	}
 
+	void Points::initialize_points_nn(index_t k, coords_index_t dim, bool selfstore){
+		points_nn_.init(k, dim, selfstore);
+		points_nn_.set_points(vertex_nb_, v_ptr());
+	}
+
+	void Points::search_nn(const double* query, coords_index_t dim, index_t search_nb, index_t* ind, double* dist, index_t k){
+		if (dim != dimension_){
+			fprintf(stderr, "the dimension of the query data differs from the points'");
+		}
+		initialize_points_nn(k, dimension_, false);
+		index_t neighbors_nb = k;
+		if (neighbors_nb > 0 && neighbors_nb < vertex_nb_){
+			for (index_t t = 0; t < search_nb; ++t){
+				points_nn_.get_nearest_neighbors(query + dim * t,
+					ind + neighbors_nb * t,
+					neighbors_nb,
+					dist + neighbors_nb * t);
+			}
+		}
+	}
+
+	void Points::search_nn(const double* query, coords_index_t dim, index_t search_nb, index_t k){
+		if (dim != dimension_){
+			fprintf(stderr, "the dimension of the query data differs from the points'");
+		}
+		points_nn_.clear();
+		initialize_points_nn(k, dimension_, true);
+		if (points_nn_.malloc_dist2(search_nb) &&
+			points_nn_.malloc_index(search_nb)){
+			index_t neighbors_nb = k;
+			if (neighbors_nb > 0 && neighbors_nb < vertex_nb_){
+				for (index_t t = 0; t < search_nb; ++t){
+					printf(" ---doing %d---\n", t);
+					points_nn_.get_nearest_neighbors(query + dim * t,
+						neighbors_nb, t);
+				}
+			}
+		}
+	}
+
 	const index_t* Mesh::get_facet(index_t t) const{
 		if (t >= facet_nb_){
 			fprintf(stderr, "cannot get the facet as index > real number");
-			return NULL;
+			return nil;
 		}
 		else return &facet_[t * dimension_];
 	}
