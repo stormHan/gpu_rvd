@@ -17,6 +17,11 @@ namespace Gpu_Rvd{
 		Points();
 
 		/*
+		 * \brief Constructs the points in mesh
+		 */
+		//Points(Mesh m);
+
+		/*
 		 * \brief Gets the dimension fo the Points.
 		 */
 		const index_t dimension() const{
@@ -88,6 +93,13 @@ namespace Gpu_Rvd{
 			return points_nn_.get_index();
 		}
 
+		/*
+		 * \brief Gets the k which represents the neighbor size.
+		 */
+		const index_t get_k() const{
+			return points_nn_.get_k();
+		}
+
 	protected:
 		std::vector<double>		vertexd_;
 		std::vector<float>		vertexf_;
@@ -106,7 +118,7 @@ namespace Gpu_Rvd{
 	public:
 		Mesh();
 
-		Mesh(const Mesh& M);
+		//Mesh(const Mesh& M);
 
 		const index_t* get_facet(index_t t) const;
 
@@ -116,14 +128,16 @@ namespace Gpu_Rvd{
 
 		const index_t get_facet_nb() const{ return facet_nb_; }
 
+		const index_t* f_ptr() const{
+			return &facet_[0];
+		}
+
 
 	private:
 		
 		std::vector<index_t>	facet_;
 		index_t					facet_nb_;
 
-		
-		
 	};
 
 }
