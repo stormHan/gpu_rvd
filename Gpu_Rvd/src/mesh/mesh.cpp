@@ -11,7 +11,8 @@ namespace Gpu_Rvd{
 
 	Mesh::Mesh() :
 		facet_nb_(0)
-	{};
+	{
+	};
 
 	bool Points::is_double_precision(){
 		if (is_double_precision_) return true;
