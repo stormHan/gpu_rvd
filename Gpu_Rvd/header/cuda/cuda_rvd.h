@@ -8,9 +8,13 @@
 
 #include <basic\common.h>
 #include <cuda\cuda_common.h>
+#include <cuda\cuda_math.h>
 #include <cuda\cuda_stop_watcher.h>
+#include <cuda\cuda_polygon.h>
 #include <mesh\mesh.h>
 
+#include <fstream>
+#include <iomanip>
 
 namespace Gpu_Rvd{
 
@@ -28,6 +32,16 @@ namespace Gpu_Rvd{
 		 * \brief Construts the RVD with Mesh, Points and NN information.
 		 */
 		CudaRestrictedVoronoiDiagram(Mesh m, Points p, index_t k, const index_t* points_nn, const index_t* facets_nn);
+
+		/*
+		 * \brief 
+		 */
+		CudaRestrictedVoronoiDiagram(
+			const double* vertex, index_t vertex_nb,
+			const double* points, index_t points_nb,
+			const index_t* facets, index_t facets_nb,
+			index_t* points_nn, index_t k_p,
+			index_t* facets_nn, index_t dim);
 
 		/*
 		 * \brief Destruction. now it does nothing.
@@ -58,6 +72,16 @@ namespace Gpu_Rvd{
 		void free_memory();
 
 		/*
+		 * \brief Copies back the data from device to host.
+		 */
+		void copy_back();
+
+		/*
+		 * \brief Prints the return data for convenient debug.
+		 */
+		void print_return_data(const std::string filename) const;
+
+		/*
 		 * \brief Checks if some manipulation get error.
 		 */
 		void CheckCUDAError(const char *msg)
@@ -67,7 +91,6 @@ namespace Gpu_Rvd{
 				fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString(err));
 				exit(EXIT_FAILURE);
 			}
-
 		}
 	private:
 		const double* vertex_;
