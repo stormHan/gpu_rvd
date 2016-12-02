@@ -81,11 +81,11 @@ int main(int argc, char** argv){
 	}*/
 #endif
 	CudaRestrictedVoronoiDiagram RVD(
-		M_in,
-		Points_in,
-		20,
-		points_nn,
-		facets_nn
+		M_in.v_ptr(),			M_in.get_vertex_nb(),
+		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
+		M_in.f_ptr(),			M_in.get_facet_nb(),
+		points_nn,				Points_in.get_k(),
+		facets_nn,				Points_in.dimension()
 		);
 
 	RVD.compute_Rvd();
