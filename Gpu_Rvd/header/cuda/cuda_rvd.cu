@@ -555,14 +555,14 @@ namespace Gpu_Rvd{
 
 	__host__
 		void CudaRestrictedVoronoiDiagram::print_return_data(std::string filename) const{
-		for (int i = 0; i < points_nb_; ++i)
+		/*for (int i = 0; i < points_nb_; ++i)
 		{
 			if (fabs(host_ret_[i * 4 + 3]) >= 1e-12){
 				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
 			}
-		}
+		}*/
 		index_t line_num = 4;
 		std::ofstream f;
 		f.open(filename);
