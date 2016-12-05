@@ -113,8 +113,11 @@ namespace Gpu_Rvd{
 		index_t* dev_facets_;
 		index_t* dev_points_nn_;
 		index_t* dev_facets_nn_;
-		double* dev_ret;
-		double* host_ret;
+		double* dev_ret_;
+		double* host_ret_;
+
+		double* dev_seeds_info_;
+		int*	dev_seeds_poly_nb;
 	};
 
 }
