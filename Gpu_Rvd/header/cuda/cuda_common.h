@@ -33,7 +33,9 @@ namespace Gpu_Rvd{
 		double c_points[500];
 
 	__constant__
-		int c_points_nn[3240];
+		index_t c_points_nn[3240];
+
+	
 }
 
 #endif /* CUDA_COMMON_H */
