@@ -61,7 +61,7 @@ int main(int argc, char** argv){
 	for (index_t t = 0; t < M_in.get_facet_nb(); ++t){
 		scanf("%d ", &facets_nn[t]);
 	}
-	
+	freopen("CON", "r", stdin);
 	/*freopen("..//test//S2_points_nn", "w", stdout);
 	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
 		printf("%d ", points_nn[t]);
@@ -84,12 +84,13 @@ int main(int argc, char** argv){
 		M_in.v_ptr(),			M_in.get_vertex_nb(),
 		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
 		M_in.f_ptr(),			M_in.get_facet_nb(),
-		points_nn,				Points_in.get_k(),
+		points_nn,				20,
 		facets_nn,				Points_in.dimension()
 		);
 
 	RVD.compute_Rvd();
 
 	S.print_elaspsed_time(std::cout);
+	getchar();
 	return 0;
 }
