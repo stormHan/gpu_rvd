@@ -118,6 +118,8 @@ namespace Gpu_Rvd{
 
 		double* dev_seeds_info_;
 		int*	dev_seeds_poly_nb;
+
+		DeviceMemoryMode mode_;
 	};
 
 }
