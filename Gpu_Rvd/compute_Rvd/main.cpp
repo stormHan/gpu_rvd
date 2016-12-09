@@ -53,11 +53,11 @@ int main(int argc, char** argv){
 	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
 	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
 
-	freopen("..//test//right//S2_points.txt", "r", stdin);
+	freopen("..//test//right//bunny_points_nn.txt", "r", stdin);
 	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
 		scanf("%d ", &points_nn[t]);
 	}
-	freopen("..//test//right//S2_facets.txt", "r", stdin);
+	freopen("..//test//right//bunny_facets_nn.txt", "r", stdin);
 	for (index_t t = 0; t < M_in.get_facet_nb(); ++t){
 		scanf("%d ", &facets_nn[t]);
 	}
