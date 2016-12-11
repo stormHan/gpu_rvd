@@ -113,11 +113,11 @@ namespace Gpu_Rvd{
 	/*
 	 * \brief fetch the double type in texture
 	 */
-	/*static __inline__ __device__
+	static __inline__ __device__
 		double fetch_double(texture<int2, 1> t, index_t i){
 		int2 v = tex1Dfetch(t, i);
 		return __hiloint2double(v.y, v.x);
-	}*/
+	}
 
 	/*
 	 * \breif Manipulates the computed RVD data.
@@ -399,6 +399,7 @@ namespace Gpu_Rvd{
 			vertex[facet_index.z * dim + 1],
 			vertex[facet_index.z * dim + 2]
 		};
+		
 
 		CudaPolygon current_polygon;
 		current_polygon.vertex_nb = 3;
@@ -419,7 +420,7 @@ namespace Gpu_Rvd{
 		//load \memory[facets_nn] 1 time.
 		to_visit[to_visit_pos++] = facets_nn[tid];
 		has_visited[has_visited_nb++] = to_visit[0];
-		
+
 		while (to_visit_pos){
 			index_t current_seed = to_visit[to_visit_pos - 1];
 			to_visit_pos--;
@@ -434,10 +435,10 @@ namespace Gpu_Rvd{
 				);
 
 			//now we get the clipped polygon stored in "polygon", do something.
-			/*action(
+			action(
 				current_polygon,
 				current_seed
-				);*/
+				);
 			
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
@@ -467,9 +468,9 @@ namespace Gpu_Rvd{
 		__syncthreads();
 
 
-		/*for (index_t i = 0; i < points_nb; ++i){
+		for (index_t i = 0; i < points_nb; ++i){
 			retdata[i] = g_seeds_polygon_nb[i];
-		}*/
+		}
 		/*for (index_t i = 0; i < points_nb * 4; ++i){
 			retdata[i] = g_seeds_information[i];
 		}*/
@@ -788,7 +789,7 @@ namespace Gpu_Rvd{
 			}
 			current_polygon = current_store;
 		}
-		__syncthreads();
+		//__syncthreads();
 
 		/*for (index_t i = 0; i < points_nb; ++i){
 		retdata[i] = g_seeds_polygon_nb[i];
@@ -803,10 +804,10 @@ namespace Gpu_Rvd{
 		CudaStopWatcher watcher("compute_rvd");
 		watcher.start();
 
-		mode_ = TEXTURE_MEMORY;
+		mode_ = GLOBAL_MEMORY;
 		allocate_and_copy(mode_);
 		//might be improved dim3 type.
-		int threads = 512;
+		int threads = 1024;
 		int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
 		switch (mode_)
 		{
@@ -850,8 +851,8 @@ namespace Gpu_Rvd{
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
 		
-		//std::string out_file("..//out//S2_points_tex.txt");
-		//print_return_data(out_file);
+		std::string out_file("..//out//S2_points_tex.txt");
+		print_return_data(out_file);
 		free_memory();
 	}
 
@@ -972,14 +973,14 @@ namespace Gpu_Rvd{
 
 	__host__
 		void CudaRestrictedVoronoiDiagram::print_return_data(std::string filename) const{
-		for (int i = 0; i < points_nb_; ++i)
+		/*for (int i = 0; i < points_nb_; ++i)
 		{
 			if (fabs(host_ret_[i * 4 + 3]) >= 1e-12){
 				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
 			}
-		}
+		}*/
 		index_t line_num = 4;
 		std::ofstream f;
 		f.open(filename);
