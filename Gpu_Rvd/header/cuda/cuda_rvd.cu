@@ -358,12 +358,12 @@ namespace Gpu_Rvd{
 	
 
 	__global__
-	void kernel(
-		double*			vertex,		index_t			vertex_nb,
-		double*			points,		index_t			points_nb,
-		index_t*		facets,		index_t			facets_nb,
-		index_t*		points_nn,	index_t			k_p,
-		index_t*		facets_nn,	index_t			dim,
+		void kernel(
+		double*			vertex, index_t			vertex_nb,
+		double*			points, index_t			points_nb,
+		index_t*		facets, index_t			facets_nb,
+		index_t*		points_nn, index_t			k_p,
+		index_t*		facets_nn, index_t			dim,
 		double*			retdata
 		){
 		index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -382,7 +382,7 @@ namespace Gpu_Rvd{
 			facets[tid * dim + 1],
 			facets[tid * dim + 2]
 		};
-		
+
 		//load \memory[vertex] 9 times.
 		double3 v1 = {
 			vertex[facet_index.x * dim + 0],
@@ -399,7 +399,13 @@ namespace Gpu_Rvd{
 			vertex[facet_index.z * dim + 1],
 			vertex[facet_index.z * dim + 2]
 		};
-		
+
+		if (tid == 0){
+			retdata[0] = v1.x;
+			retdata[1] = v1.y;
+			retdata[2] = v1.z;
+		}
+		return;
 
 		CudaPolygon current_polygon;
 		current_polygon.vertex_nb = 3;
