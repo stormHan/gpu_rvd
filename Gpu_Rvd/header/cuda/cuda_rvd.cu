@@ -113,11 +113,11 @@ namespace Gpu_Rvd{
 	/*
 	 * \brief fetch the double type in texture
 	 */
-	static __inline__ __device__
+	/*static __inline__ __device__
 		double fetch_double(texture<int2, 1> t, index_t i){
 		int2 v = tex1Dfetch(t, i);
 		return __hiloint2double(v.y, v.x);
-	}
+	}*/
 
 	/*
 	 * \breif Manipulates the computed RVD data.
