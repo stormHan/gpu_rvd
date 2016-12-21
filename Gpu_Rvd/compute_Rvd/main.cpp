@@ -43,6 +43,15 @@ int main(int argc, char** argv){
 		return 1;
 	}
 	
+	/*
+	 * \brief 
+	 * if we have complete voronoi cell, use it or not?
+	 */
+#ifdef COMPLETE_VORONOI_CELL
+
+#else
+
+#endif 
 
 #ifdef KNN
 	
