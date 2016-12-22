@@ -10,6 +10,9 @@
 #include <mesh\mesh_io.h>
 #include <cuda\cuda_common.h>
 #include <cuda\cuda_rvd.h>
+#include <cuda\cuda_knn.h>
+
+#define KNN
 
 int main(int argc, char** argv){
 	using namespace Gpu_Rvd;
@@ -54,7 +57,22 @@ int main(int argc, char** argv){
 #endif 
 
 #ifdef KNN
-	
+	CudaKNearestNeighbor cudaknn(Points_in, 20);
+	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
+	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb() * 20);
+	cudaknn.search(points_nn);
+	freopen("..//test//S2_points_nn", "w", stdout);
+	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
+		printf("%d ", points_nn[t]);
+		if (t % 20 == 19) printf("\n");
+	}
+	cudaknn.set_query(M_in);
+	cudaknn.search(facets_nn);
+	freopen("..//test//S2_facets_nn.txt", "w", stdout);
+	for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
+		printf("%d ", facets_nn[t]);
+		if (t % 20 == 19) printf("\n");
+	}
 #else
 	// do not use Knn algorigthm, find the Nearest Neighbors by comparing the distance in CPU.
 	//Points_in.search_nn(Points_in.v_ptr(), 3, Points_in.get_vertex_nb(), 20);
@@ -99,6 +117,14 @@ int main(int argc, char** argv){
 
 	RVD.compute_Rvd();
 
+	if (points_nn != nil){
+		free(points_nn);
+		points_nn = nil;
+	}
+	if (facets_nn != nil){
+		free(facets_nn);
+		facets_nn = nil;
+	}
 	S.print_elaspsed_time(std::cout);
 	getchar();
 	return 0;
