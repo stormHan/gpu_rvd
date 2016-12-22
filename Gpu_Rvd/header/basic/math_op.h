@@ -4,6 +4,9 @@
  *
  */
 
+#ifndef H_BASIC_MATH
+#define H_BASIC_MATH
+
 #include <basic\common.h>
 
 #include <math.h>
@@ -23,6 +26,14 @@ namespace Gpu_Rvd{
 			}
 			return result;
 		}
+
+		inline void compute_center(const double* p1, const double* p2, const double* p3, index_t dim, float* result){
+			for (coords_index_t t = 0; t < dim; ++t){
+				result[t] = (float)((p1[t] + p2[t] + p3[t]) / 3);
+			}
+		}
 	}
 
 }
+
+#endif /* H_BASIC_MATH */
