@@ -33,6 +33,10 @@ namespace Gpu_Rvd{
 		void set_query(const Points& p);
 
 		void set_query(const Mesh& m);
+
+		void set_k(const int k){
+			k_ = k;
+		}
 	private:
 
 		void knn(float* ref_host, int ref_width, float* query_host, int query_width,
@@ -43,6 +47,7 @@ namespace Gpu_Rvd{
 			query_ = (float*)malloc(query_nb * dim_ * sizeof(float));
 			dist_ = (float*)malloc(query_nb * k_ * sizeof(float));
 			ind_ = (int*)malloc(query_nb * k_ * sizeof(int));
+			malloc_nb_ = query_nb * k_;
 		};
 
 		float*	ref_;
@@ -54,7 +59,7 @@ namespace Gpu_Rvd{
 
 		float*	dist_;
 		int*	ind_;
-
+		int		malloc_nb_;
 	};
 }
 
