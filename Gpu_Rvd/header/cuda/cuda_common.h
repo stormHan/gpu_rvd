@@ -14,6 +14,12 @@ namespace Gpu_Rvd{
 #define FLOAT_SIZE sizeof(double)
 #define INT_SIZE sizeof(int)
 
+#define MAX_PITCH_VALUE_IN_BYTES       262144
+#define MAX_TEXTURE_WIDTH_IN_BYTES     65536
+#define MAX_TEXTURE_HEIGHT_IN_BYTES    32768
+#define MAX_PART_OF_FREE_MEMORY_USED   0.9
+#define BLOCK_DIM					   16
+
 	const index_t CUDA_Stack_size = 10;
 
 	//Set cuda global variables.
