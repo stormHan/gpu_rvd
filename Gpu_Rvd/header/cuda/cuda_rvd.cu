@@ -63,7 +63,8 @@ namespace Gpu_Rvd{
 		const double* points, index_t points_nb,
 		const index_t* facets, index_t facets_nb,
 		index_t* points_nn, index_t k_p,
-		index_t* facets_nn, index_t dim
+		index_t* facets_nn, index_t k_f,
+		index_t  dim
 		) :
 		vertex_(vertex),
 		vertex_nb_(vertex_nb),
@@ -72,6 +73,7 @@ namespace Gpu_Rvd{
 		facets_(facets),
 		facet_nb_(facets_nb),
 		k_(k_p),
+		f_k(k_f),
 		points_nn_(points_nn),
 		facets_nn_(facets_nn),
 		dimension_(dim),
@@ -363,13 +365,15 @@ namespace Gpu_Rvd{
 		double*			points, index_t			points_nb,
 		index_t*		facets, index_t			facets_nb,
 		index_t*		points_nn, index_t			k_p,
-		index_t*		facets_nn, index_t			dim,
+		index_t*		facets_nn, index_t			k_f,
+		index_t			dim,
 		double*			retdata
 		){
-		index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-		if (tid >= facets_nb) return;
+		index_t fid = blockIdx.y * gridDim.x + blockIdx.x;
+		index_t tid = threadIdx.x;
+		if (fid >= facets_nb) return;
 
-		if (tid >= 0 && tid < points_nb){
+		if (fid < points_nb && tid == 0){
 			g_seeds_information[tid * 4 + 0] = 0.0;
 			g_seeds_information[tid * 4 + 1] = 0.0;
 			g_seeds_information[tid * 4 + 2] = 0.0;
@@ -377,106 +381,106 @@ namespace Gpu_Rvd{
 		}
 
 		//load \memory[facet] 3 times.
-		int3 facet_index = {
-			facets[tid * dim + 0],
-			facets[tid * dim + 1],
-			facets[tid * dim + 2]
-		};
-
-		//load \memory[vertex] 9 times.
-		double3 v1 = {
-			vertex[facet_index.x * dim + 0],
-			vertex[facet_index.x * dim + 1],
-			vertex[facet_index.x * dim + 2]
-		};
-		double3 v2 = {
-			vertex[facet_index.y * dim + 0],
-			vertex[facet_index.y * dim + 1],
-			vertex[facet_index.y * dim + 2]
-		};
-		double3 v3 = {
-			vertex[facet_index.z * dim + 0],
-			vertex[facet_index.z * dim + 1],
-			vertex[facet_index.z * dim + 2]
-		};
-
-		if (tid == 0){
-			retdata[0] = v1.x;
-			retdata[1] = v1.y;
-			retdata[2] = v1.z;
+		__shared__ int local_facet_index[9];
+		if (tid < 9){
+			int a = tid / 3, b = tid % 3;
+			local_facet_index[tid] = facets[fid * dim + a] * dim + b;
 		}
-		return;
+		__syncthreads();
+		//load \memory[vertex] 9 times.
+		__shared__ double local_vertex[9];
 
+		if (tid < 9){
+			local_vertex[tid] = vertex[local_facet_index[tid]];
+		}
+		__syncthreads();
+		
 		CudaPolygon current_polygon;
 		current_polygon.vertex_nb = 3;
 
-		current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
-		current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
-		current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
+		current_polygon.vertex[0].x = local_vertex[0]; current_polygon.vertex[0].y = local_vertex[1]; current_polygon.vertex[0].z = local_vertex[2]; current_polygon.vertex[0].w = 1.0;
+		current_polygon.vertex[1].x = local_vertex[3]; current_polygon.vertex[1].y = local_vertex[4]; current_polygon.vertex[1].z = local_vertex[5]; current_polygon.vertex[1].w = 1.0;
+		current_polygon.vertex[2].x = local_vertex[6]; current_polygon.vertex[2].y = local_vertex[7]; current_polygon.vertex[2].z = local_vertex[8]; current_polygon.vertex[2].w = 1.0;
 
-		CudaPolygon current_store = current_polygon;
-		//doesn't have the stack?
-		index_t to_visit[CUDA_Stack_size];
-		index_t to_visit_pos = 0;
+		index_t current_seed = facets_nn[fid * k_f + tid];
 
-		index_t has_visited[CUDA_Stack_size];
-		index_t has_visited_nb = 0;
-		bool has_visited_flag = false;
+		intersection_clip_facet_SR(
+			current_polygon,
+			current_seed,
+			points,
+			points_nb,
+			points_nn,
+			k_p
+			);
 
-		//load \memory[facets_nn] 1 time.
-		to_visit[to_visit_pos++] = facets_nn[tid];
-		has_visited[has_visited_nb++] = to_visit[0];
+		//now we get the clipped polygon stored in "polygon", do something.
+		/*action(
+			current_polygon,
+			current_seed
+			);*/
+		////doesn't have the stack?
+		//index_t to_visit[CUDA_Stack_size];
+		//index_t to_visit_pos = 0;
 
-		while (to_visit_pos){
-			index_t current_seed = to_visit[to_visit_pos - 1];
-			to_visit_pos--;
-			
-			intersection_clip_facet_SR(
-				current_polygon,
-				current_seed,
-				points,
-				points_nb,
-				points_nn,
-				k_p
-				);
+		//index_t has_visited[CUDA_Stack_size];
+		//index_t has_visited_nb = 0;
+		//bool has_visited_flag = false;
 
-			//now we get the clipped polygon stored in "polygon", do something.
-			action(
-				current_polygon,
-				current_seed
-				);
-			
-			//Propagate to adjacent seeds
-			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
-			{
-				CudaVertex ve = current_polygon.vertex[v];
-				int ns = ve.neigh_s;
-				if (ns != -1)
-				{
-					for (index_t ii = 0; ii < has_visited_nb; ++ii)
-					{
-						//if the neighbor seed has clipped the polygon
-						//the flag should be set "true"
-						if (has_visited[ii] == ns)
-							has_visited_flag = true;
-					}
-					//the neighbor seed is new!
-					if (!has_visited_flag)
-					{
-						to_visit[to_visit_pos++] = ns;
-						has_visited[has_visited_nb++] = ns;
-					}
-					has_visited_flag = false;
-				}
-			}	
-			current_polygon = current_store;
-		}
+		//load \memory[facets_nn] 1 time. 
+		/*to_visit[to_visit_pos++] = facets_nn[fid * k_p + tid];
+		has_visited[has_visited_nb++] = to_visit[0];*/
+
+		//while (to_visit_pos){
+		//	index_t current_seed = to_visit[to_visit_pos - 1];
+		//	to_visit_pos--;
+		//	
+		//	intersection_clip_facet_SR(
+		//		current_polygon,
+		//		current_seed,
+		//		points,
+		//		points_nb,
+		//		points_nn,
+		//		k_p
+		//		);
+
+		//	//now we get the clipped polygon stored in "polygon", do something.
+		//	action(
+		//		current_polygon,
+		//		current_seed
+		//		);
+		//	
+		//	//Propagate to adjacent seeds
+		//	for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
+		//	{
+		//		CudaVertex ve = current_polygon.vertex[v];
+		//		int ns = ve.neigh_s;
+		//		if (ns != -1)
+		//		{
+		//			for (index_t ii = 0; ii < has_visited_nb; ++ii)
+		//			{
+		//				//if the neighbor seed has clipped the polygon
+		//				//the flag should be set "true"
+		//				if (has_visited[ii] == ns)
+		//					has_visited_flag = true;
+		//			}
+		//			//the neighbor seed is new!
+		//			if (!has_visited_flag)
+		//			{
+		//				to_visit[to_visit_pos++] = ns;
+		//				has_visited[has_visited_nb++] = ns;
+		//			}
+		//			has_visited_flag = false;
+		//		}
+		//	}	
+		//	current_polygon = current_store;
+		//}
 		__syncthreads();
 
-
-		for (index_t i = 0; i < points_nb; ++i){
-			retdata[i] = g_seeds_polygon_nb[i];
-		}
+		/*if (fid == 0 && tid == 0){
+			for (index_t i = 0; i < points_nb / 2; ++i){
+				retdata[i] = g_seeds_polygon_nb[i];
+			}
+		}*/
 		/*for (index_t i = 0; i < points_nb * 4; ++i){
 			retdata[i] = g_seeds_information[i];
 		}*/
@@ -652,43 +656,43 @@ namespace Gpu_Rvd{
 		index_t i,
 		index_t k
 		){
-		CudaPolygon polygon_buffer;
-		
-		//load /memory[points] 3 times.
-		double3 pi = {
-			fetch_double(t_points, (int)(i * 3 + 0)),
-			fetch_double(t_points, i * 3 + 1),
-			fetch_double(t_points, i * 3 + 2)
-		};
-		
-		for (index_t t = 0; t < k; ++t){
+		//CudaPolygon polygon_buffer;
+		//
+		////load /memory[points] 3 times.
+		//double3 pi = {
+		//	fetch_double(t_points, (int)(i * 3 + 0)),
+		//	fetch_double(t_points, i * 3 + 1),
+		//	fetch_double(t_points, i * 3 + 2)
+		//};
+		//
+		//for (index_t t = 0; t < k; ++t){
 
-			//load /memory[points_nn] k times.
-			index_t j = tex1Dfetch(t_points_nn, i * k + t);
+		//	//load /memory[points_nn] k times.
+		//	index_t j = tex1Dfetch(t_points_nn, i * k + t);
 
-			if (i != j){
-				//load /memroy[points] k * 3 times.
-				double3 pj = {
-					fetch_double(t_points, j * 3 + 0),
-					fetch_double(t_points, j * 3 + 1),
-					fetch_double(t_points, j * 3 + 2)
-				};
+		//	if (i != j){
+		//		//load /memroy[points] k * 3 times.
+		//		double3 pj = {
+		//			fetch_double(t_points, j * 3 + 0),
+		//			fetch_double(t_points, j * 3 + 1),
+		//			fetch_double(t_points, j * 3 + 2)
+		//		};
 
-				double dij = distance2(pi, pj);
-				double R2 = 0.0;
+		//		double dij = distance2(pi, pj);
+		//		double R2 = 0.0;
 
-				for (index_t tt = 0; tt < current_polygon.vertex_nb; ++tt){
-					double3 pk = { current_polygon.vertex[tt].x, current_polygon.vertex[tt].y, current_polygon.vertex[tt].z };
-					double dik = distance2(pi, pk);
-					R2 = max(R2, dik);
-				}
-				if (dij > 4.1 * R2){
-					return;
-				}
-				clip_by_plane(current_polygon, polygon_buffer, pi, pj, j);
-				swap_polygon(current_polygon, polygon_buffer);
-			}
-		}
+		//		for (index_t tt = 0; tt < current_polygon.vertex_nb; ++tt){
+		//			double3 pk = { current_polygon.vertex[tt].x, current_polygon.vertex[tt].y, current_polygon.vertex[tt].z };
+		//			double dik = distance2(pi, pk);
+		//			R2 = max(R2, dik);
+		//		}
+		//		if (dij > 4.1 * R2){
+		//			return;
+		//		}
+		//		clip_by_plane(current_polygon, polygon_buffer, pi, pj, j);
+		//		swap_polygon(current_polygon, polygon_buffer);
+		//	}
+		//}
 	}
 
 	__global__
@@ -700,109 +704,109 @@ namespace Gpu_Rvd{
 		index_t*		facets_nn, index_t			dim,
 		double*			retdata
 		){
-		index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-		if (tid >= facets_nb) return;
+		//index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+		//if (tid >= facets_nb) return;
 
-		if (tid >= 0 && tid < points_nb){
-			g_seeds_information[tid * 4 + 0] = 0.0;
-			g_seeds_information[tid * 4 + 1] = 0.0;
-			g_seeds_information[tid * 4 + 2] = 0.0;
-			g_seeds_information[tid * 4 + 3] = 0.0;
-		}
+		//if (tid >= 0 && tid < points_nb){
+		//	g_seeds_information[tid * 4 + 0] = 0.0;
+		//	g_seeds_information[tid * 4 + 1] = 0.0;
+		//	g_seeds_information[tid * 4 + 2] = 0.0;
+		//	g_seeds_information[tid * 4 + 3] = 0.0;
+		//}
 
-		//load \memory[facet] 3 times.
-		int3 facet_index = {
-			facets[tid * dim + 0],
-			facets[tid * dim + 1],
-			facets[tid * dim + 2]
-		};
+		////load \memory[facet] 3 times.
+		//int3 facet_index = {
+		//	facets[tid * dim + 0],
+		//	facets[tid * dim + 1],
+		//	facets[tid * dim + 2]
+		//};
 
-		//load \memory[vertex] 9 times.
-		double3 v1 = {
-			fetch_double(t_vertex, facet_index.x * dim + 0),
-			fetch_double(t_vertex, facet_index.x * dim + 1),
-			fetch_double(t_vertex, facet_index.x * dim + 2)
-		};
-		double3 v2 = {
-			fetch_double(t_vertex, facet_index.y * dim + 0),
-			fetch_double(t_vertex, facet_index.y * dim + 1),
-			fetch_double(t_vertex, facet_index.y * dim + 2)
-		};
-		double3 v3 = {
-			fetch_double(t_vertex, facet_index.z * dim + 0),
-			fetch_double(t_vertex, facet_index.z * dim + 1),
-			fetch_double(t_vertex, facet_index.z * dim + 2)
-		};
+		////load \memory[vertex] 9 times.
+		//double3 v1 = {
+		//	fetch_double(t_vertex, facet_index.x * dim + 0),
+		//	fetch_double(t_vertex, facet_index.x * dim + 1),
+		//	fetch_double(t_vertex, facet_index.x * dim + 2)
+		//};
+		//double3 v2 = {
+		//	fetch_double(t_vertex, facet_index.y * dim + 0),
+		//	fetch_double(t_vertex, facet_index.y * dim + 1),
+		//	fetch_double(t_vertex, facet_index.y * dim + 2)
+		//};
+		//double3 v3 = {
+		//	fetch_double(t_vertex, facet_index.z * dim + 0),
+		//	fetch_double(t_vertex, facet_index.z * dim + 1),
+		//	fetch_double(t_vertex, facet_index.z * dim + 2)
+		//};
 
-		CudaPolygon current_polygon;
-		current_polygon.vertex_nb = 3;
+		//CudaPolygon current_polygon;
+		//current_polygon.vertex_nb = 3;
 
-		current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
-		current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
-		current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
+		//current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
+		//current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
+		//current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
 
-		CudaPolygon current_store = current_polygon;
-		//doesn't have the stack?
-		index_t to_visit[CUDA_Stack_size];
-		index_t to_visit_pos = 0;
+		//CudaPolygon current_store = current_polygon;
+		////doesn't have the stack?
+		//index_t to_visit[CUDA_Stack_size];
+		//index_t to_visit_pos = 0;
 
-		index_t has_visited[CUDA_Stack_size];
-		index_t has_visited_nb = 0;
-		bool has_visited_flag = false;
+		//index_t has_visited[CUDA_Stack_size];
+		//index_t has_visited_nb = 0;
+		//bool has_visited_flag = false;
 
-		//load \memory[facets_nn] 1 time.
-		to_visit[to_visit_pos++] = facets_nn[tid];
-		has_visited[has_visited_nb++] = to_visit[0];
+		////load \memory[facets_nn] 1 time.
+		//to_visit[to_visit_pos++] = facets_nn[tid];
+		//has_visited[has_visited_nb++] = to_visit[0];
 
-		while (to_visit_pos){
-			index_t current_seed = to_visit[to_visit_pos - 1];
-			to_visit_pos--;
+		//while (to_visit_pos){
+		//	index_t current_seed = to_visit[to_visit_pos - 1];
+		//	to_visit_pos--;
 
-			t_intersection_clip_facet_SR(
-				current_polygon,
-				current_seed,
-				k_p
-				);
+		//	t_intersection_clip_facet_SR(
+		//		current_polygon,
+		//		current_seed,
+		//		k_p
+		//		);
 
-			//now we get the clipped polygon stored in "polygon", do something.
-			/*action(
-				current_polygon,
-				current_seed
-				);*/
+		//	//now we get the clipped polygon stored in "polygon", do something.
+		//	/*action(
+		//		current_polygon,
+		//		current_seed
+		//		);*/
 
-			//Propagate to adjacent seeds
-			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
-			{
-				CudaVertex ve = current_polygon.vertex[v];
-				int ns = ve.neigh_s;
-				if (ns != -1)
-				{
-					for (index_t ii = 0; ii < has_visited_nb; ++ii)
-					{
-						//if the neighbor seed has clipped the polygon
-						//the flag should be set "true"
-						if (has_visited[ii] == ns)
-							has_visited_flag = true;
-					}
-					//the neighbor seed is new!
-					if (!has_visited_flag)
-					{
-						to_visit[to_visit_pos++] = ns;
-						has_visited[has_visited_nb++] = ns;
-					}
-					has_visited_flag = false;
-				}
-			}
-			current_polygon = current_store;
-		}
-		//__syncthreads();
+		//	//Propagate to adjacent seeds
+		//	for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
+		//	{
+		//		CudaVertex ve = current_polygon.vertex[v];
+		//		int ns = ve.neigh_s;
+		//		if (ns != -1)
+		//		{
+		//			for (index_t ii = 0; ii < has_visited_nb; ++ii)
+		//			{
+		//				//if the neighbor seed has clipped the polygon
+		//				//the flag should be set "true"
+		//				if (has_visited[ii] == ns)
+		//					has_visited_flag = true;
+		//			}
+		//			//the neighbor seed is new!
+		//			if (!has_visited_flag)
+		//			{
+		//				to_visit[to_visit_pos++] = ns;
+		//				has_visited[has_visited_nb++] = ns;
+		//			}
+		//			has_visited_flag = false;
+		//		}
+		//	}
+		//	current_polygon = current_store;
+		//}
+		////__syncthreads();
 
-		/*for (index_t i = 0; i < points_nb; ++i){
-		retdata[i] = g_seeds_polygon_nb[i];
-		}*/
-		/*for (index_t i = 0; i < points_nb * 4; ++i){
-			retdata[i] = g_seeds_information[i];
-		}*/
+		///*for (index_t i = 0; i < points_nb; ++i){
+		//retdata[i] = g_seeds_polygon_nb[i];
+		//}*/
+		///*for (index_t i = 0; i < points_nb * 4; ++i){
+		//	retdata[i] = g_seeds_information[i];
+		//}*/
 	}
 
 	__host__
@@ -813,19 +817,22 @@ namespace Gpu_Rvd{
 		mode_ = GLOBAL_MEMORY;
 		allocate_and_copy(mode_);
 		//might be improved dim3 type.
-		int threads = 1024;
-		int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
+		dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
+		dim3 threads(f_k, 1, 1);
 		switch (mode_)
 		{
 		case GLOBAL_MEMORY:
-			kernel << < threads, blocks >> > (
+			
+			kernel << < blocks, threads >> > (
 				dev_vertex_, vertex_nb_,
 				dev_points_, points_nb_,
 				dev_facets_, facet_nb_,
 				dev_points_nn_, k_,
-				dev_facets_nn_, dimension_,
+				dev_facets_nn_, f_k,
+				dimension_,
 				dev_ret_
 				);
+			
 			break;
 		case CONSTANT_MEMORY:
 			c_kernel << < threads, blocks >> >(
@@ -857,8 +864,8 @@ namespace Gpu_Rvd{
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
 		
-		std::string out_file("..//out//S2_points_tex.txt");
-		print_return_data(out_file);
+		/*std::string out_file("..//out//S2_points_aaa.txt");
+		print_return_data(out_file);*/
 		free_memory();
 	}
 
@@ -882,7 +889,7 @@ namespace Gpu_Rvd{
 			cudaMalloc((void**)&dev_points_, DOUBLE_SIZE * points_nb_ * dimension_);
 			cudaMalloc((void**)&dev_facets_, sizeof(index_t) * facet_nb_ * dimension_);
 			cudaMalloc((void**)&dev_points_nn_, sizeof(index_t) * points_nb_ * k_);
-			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
+			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * f_k);
 
 			//Output result.
 			cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
@@ -893,7 +900,7 @@ namespace Gpu_Rvd{
 			cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
 			cudaMemcpy(dev_facets_, facets_, sizeof(index_t) * facet_nb_ * dimension_, cudaMemcpyHostToDevice);
 			cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
+			cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * f_k, cudaMemcpyHostToDevice);
 
 			CheckCUDAError("Copying data from host to device");
 		}
