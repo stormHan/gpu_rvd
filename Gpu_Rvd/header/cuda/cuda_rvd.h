@@ -41,7 +41,8 @@ namespace Gpu_Rvd{
 			const double* points, index_t points_nb,
 			const index_t* facets, index_t facets_nb,
 			index_t* points_nn, index_t k_p,
-			index_t* facets_nn, index_t dim);
+			index_t* facets_nn, index_t k_f,
+			index_t	 dim);
 
 		/*
 		 * \brief Destruction. now it does nothing.
@@ -102,7 +103,7 @@ namespace Gpu_Rvd{
 		const index_t* facets_;
 		index_t facet_nb_;
 
-		index_t k_;
+		index_t k_, f_k;
 		const index_t* points_nn_;
 		const index_t* facets_nn_;
 
