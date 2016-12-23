@@ -330,6 +330,13 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::search(index_t* result){
+		if (k_ * query_nb_ > malloc_nb_){
+			free(dist_);
+			free(ind_);
+			malloc_nb_ = k_ * query_nb_;
+			dist_ = (float*)malloc(malloc_nb_ * sizeof(float));
+			ind_ = (int*)malloc(malloc_nb_ * sizeof(int));
+		}
 		knn(ref_, ref_nb_, query_, query_nb_, dim_, k_, dist_, ind_);
 
 		//already got the index
