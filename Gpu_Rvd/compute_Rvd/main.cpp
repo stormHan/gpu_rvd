@@ -57,22 +57,25 @@ int main(int argc, char** argv){
 #endif 
 
 #ifdef KNN
-	CudaKNearestNeighbor cudaknn(Points_in, 20);
-	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
-	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb() * 20);
+	int f_k = 1, p_k = 20;
+	CudaKNearestNeighbor cudaknn(Points_in, M_in, f_k);
+	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * p_k);
+	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb() * f_k);
+	
+	cudaknn.search(facets_nn);
+	/*freopen("..//test//S2_facets_nn.txt", "w", stdout);
+	for (index_t t = 0; t < M_in.get_facet_nb() * f_k; ++t){
+		printf("%d ", facets_nn[t]);
+		if (t % 10 == 9) printf("\n"); 
+	}*/
+	cudaknn.set_k(20);
+	cudaknn.set_query(Points_in);
 	cudaknn.search(points_nn);
-	freopen("..//test//S2_points_nn", "w", stdout);
-	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
+	/*freopen("..//test//S2_points_nn.txt", "w", stdout);
+	for (index_t t = 0; t < Points_in.get_vertex_nb() * p_k; ++t){
 		printf("%d ", points_nn[t]);
 		if (t % 20 == 19) printf("\n");
-	}
-	cudaknn.set_query(M_in);
-	cudaknn.search(facets_nn);
-	freopen("..//test//S2_facets_nn.txt", "w", stdout);
-	for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
-		printf("%d ", facets_nn[t]);
-		if (t % 20 == 19) printf("\n");
-	}
+	}*/
 #else
 	// do not use Knn algorigthm, find the Nearest Neighbors by comparing the distance in CPU.
 	//Points_in.search_nn(Points_in.v_ptr(), 3, Points_in.get_vertex_nb(), 20);
@@ -111,8 +114,9 @@ int main(int argc, char** argv){
 		M_in.v_ptr(),			M_in.get_vertex_nb(),
 		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
 		M_in.f_ptr(),			M_in.get_facet_nb(),
-		points_nn,				20,
-		facets_nn,				Points_in.dimension()
+		points_nn,				p_k,
+		facets_nn,				f_k,
+		Points_in.dimension()
 		);
 
 	RVD.compute_Rvd();
