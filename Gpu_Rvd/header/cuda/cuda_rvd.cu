@@ -381,20 +381,54 @@ namespace Gpu_Rvd{
 		}
 
 		//load \memory[facet] 3 times.
-		__shared__ int local_facet_index[9];
-		if (tid < 9){
-			int a = tid / 3, b = tid % 3;
-			local_facet_index[tid] = facets[fid * dim + a] * dim + b;
+		//__shared__ int local_facet_index[9];
+		//if (tid < 9){
+		//	int a = tid / 3, b = tid % 3;
+		//	local_facet_index[tid] = facets[fid * dim + a] * dim + b;
+		//}
+		//__syncthreads();
+		////load \memory[vertex] 9 times.
+		//__shared__ double local_vertex[9];
+
+		//if (tid < 9){
+		//	local_vertex[tid] = vertex[local_facet_index[tid]];
+		//}
+		//__syncthreads();
+		
+		//__shared__ 
+			int local_facet_index[3];
+		if (tid == 0){
+			local_facet_index[0] = facets[fid * dim + 0];
+			local_facet_index[1] = facets[fid * dim + 1];
+			local_facet_index[2] = facets[fid * dim + 2];
 		}
+		
 		__syncthreads();
 		//load \memory[vertex] 9 times.
-		__shared__ double local_vertex[9];
+		//__shared__ 
+			double local_vertex[9];
+		if (tid == 0){
+			local_vertex[0] = vertex[local_facet_index[0] * 3 + 0];
+			local_vertex[1] = vertex[local_facet_index[0] * 3 + 1];
+			local_vertex[2] = vertex[local_facet_index[0] * 3 + 2];
 
-		if (tid < 9){
-			local_vertex[tid] = vertex[local_facet_index[tid]];
+			local_vertex[3] = vertex[local_facet_index[1] * 3 + 0];
+			local_vertex[4] = vertex[local_facet_index[1] * 3 + 1];
+			local_vertex[5] = vertex[local_facet_index[1] * 3 + 2];
+
+			local_vertex[6] = vertex[local_facet_index[2] * 3 + 0];
+			local_vertex[7] = vertex[local_facet_index[2] * 3 + 1];
+			local_vertex[8] = vertex[local_facet_index[2] * 3 + 2];
+			
 		}
-		__syncthreads();
 		
+		__syncthreads();
+		/*if (fid == 0 && tid == 0){
+			for (int i = 0; i < 9; ++i){
+				retdata[i] = local_vertex[i];
+			}
+		}
+		return;*/
 		CudaPolygon current_polygon;
 		current_polygon.vertex_nb = 3;
 
