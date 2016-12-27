@@ -61,7 +61,7 @@ namespace Gpu_Rvd{
 		/*
 		 * \brief Gets the beginning pointer of the vertex.
 		 */
-		const double* v_ptr() const{
+		const double* v_ptr(){
 			return &vertexd_[0];
 		}
 
