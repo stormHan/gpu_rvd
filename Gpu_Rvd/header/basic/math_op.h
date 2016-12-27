@@ -4,8 +4,8 @@
  *
  */
 
-#ifndef H_BASIC_MATH
-#define H_BASIC_MATH
+#ifndef H_BASIC_COMMON
+#define H_BASIC_COMMON
 
 #include <basic\common.h>
 
@@ -36,4 +36,4 @@ namespace Gpu_Rvd{
 
 }
 
-#endif /* H_BASIC_MATH */
+#endif /* H_BASIC_COMMON */

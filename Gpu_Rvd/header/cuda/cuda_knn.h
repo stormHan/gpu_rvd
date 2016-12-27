@@ -15,8 +15,8 @@
 namespace Gpu_Rvd{
 
 	/*
-	 * \brief Use k-dtree to find K nearest neighbors.
-	 */
+	* \brief Use k-dtree to find K nearest neighbors.
+	*/
 	class CudaKNearestNeighbor{
 
 	public:

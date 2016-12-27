@@ -1,6 +1,6 @@
 /*
- * \header Cuda Common.
- */
+* \header Cuda Common.
+*/
 
 #ifndef CUDA_COMMON_H
 #define CUDA_COMMON_H
@@ -31,17 +31,17 @@ namespace Gpu_Rvd{
 	//Records how many polygons belonged to each point.
 	__device__
 		int*	g_seeds_polygon_nb;
-	
+
 	__constant__
 		double	c_vertex[500];
-	
+
 	__constant__
 		double c_points[500];
 
 	__constant__
 		index_t c_points_nn[3240];
 
-	
+
 }
 
 #endif /* CUDA_COMMON_H */

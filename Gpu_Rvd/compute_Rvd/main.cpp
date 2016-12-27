@@ -46,35 +46,26 @@ int main(int argc, char** argv){
 		return 1;
 	}
 	
-	/*
-	 * \brief 
-	 * if we have complete voronoi cell, use it or not?
-	 */
-#ifdef COMPLETE_VORONOI_CELL
-
-#else
-
-#endif 
 
 #ifdef KNN
-	int f_k = 1, p_k = 20;
-	CudaKNearestNeighbor cudaknn(Points_in, M_in, f_k);
-	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * p_k);
-	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb() * f_k);
-	
+	CudaKNearestNeighbor cudaknn(Points_in, M_in, 1);
+	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
+	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
+
 	cudaknn.search(facets_nn);
 	/*freopen("..//test//S2_facets_nn.txt", "w", stdout);
-	for (index_t t = 0; t < M_in.get_facet_nb() * f_k; ++t){
-		printf("%d ", facets_nn[t]);
-		if (t % 10 == 9) printf("\n"); 
+	for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
+	printf("%d ", facets_nn[t]);
+	if (t % 20 == 19) printf("\n");
 	}*/
-	cudaknn.set_k(20);
+
 	cudaknn.set_query(Points_in);
+	cudaknn.set_k(20);
 	cudaknn.search(points_nn);
 	/*freopen("..//test//S2_points_nn.txt", "w", stdout);
-	for (index_t t = 0; t < Points_in.get_vertex_nb() * p_k; ++t){
-		printf("%d ", points_nn[t]);
-		if (t % 20 == 19) printf("\n");
+	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
+	printf("%d ", points_nn[t]);
+	if (t % 20 == 19) printf("\n");
 	}*/
 #else
 	// do not use Knn algorigthm, find the Nearest Neighbors by comparing the distance in CPU.
@@ -83,11 +74,11 @@ int main(int argc, char** argv){
 	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
 	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
 
-	freopen("..//test//right//dragon_720kf_p_nn.txt", "r", stdin);
+	freopen("..//test//right//bunny_points_nn.txt", "r", stdin);
 	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
 		scanf("%d ", &points_nn[t]);
 	}
-	freopen("..//test//right//dragon_720kf_f_nn.txt", "r", stdin);
+	freopen("..//test//right//bunny_facets_nn.txt", "r", stdin);
 	for (index_t t = 0; t < M_in.get_facet_nb(); ++t){
 		scanf("%d ", &facets_nn[t]);
 	}
@@ -114,12 +105,14 @@ int main(int argc, char** argv){
 		M_in.v_ptr(),			M_in.get_vertex_nb(),
 		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
 		M_in.f_ptr(),			M_in.get_facet_nb(),
-		points_nn,				p_k,
-		facets_nn,				f_k,
+		points_nn,				20,
+		facets_nn,				1,
 		Points_in.dimension()
 		);
 
 	RVD.compute_Rvd();
+
+	S.print_elaspsed_time(std::cout);
 
 	if (points_nn != nil){
 		free(points_nn);
@@ -129,7 +122,6 @@ int main(int argc, char** argv){
 		free(facets_nn);
 		facets_nn = nil;
 	}
-	S.print_elaspsed_time(std::cout);
 	getchar();
 	return 0;
 }

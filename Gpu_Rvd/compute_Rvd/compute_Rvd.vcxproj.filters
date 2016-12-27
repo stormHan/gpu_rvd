@@ -86,9 +86,15 @@
     <ClInclude Include="..\header\cuda\cuda_math.h">
       <Filter>cuda</Filter>
     </ClInclude>
+    <ClInclude Include="..\header\cuda\cuda_knn.h">
+      <Filter>cuda</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\header\cuda\cuda_rvd.cu">
+      <Filter>cuda</Filter>
+    </CudaCompile>
+    <CudaCompile Include="..\header\cuda\cuda_knn.cu">
       <Filter>cuda</Filter>
     </CudaCompile>
   </ItemGroup>

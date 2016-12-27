@@ -12,7 +12,7 @@
 #include <cuda\cuda_stop_watcher.h>
 #include <cuda\cuda_polygon.h>
 #include <mesh\mesh.h>
-
+#include "cuda.h"
 #include <fstream>
 #include <iomanip>
 
@@ -41,8 +41,8 @@ namespace Gpu_Rvd{
 			const double* points, index_t points_nb,
 			const index_t* facets, index_t facets_nb,
 			index_t* points_nn, index_t k_p,
-			index_t* facets_nn, index_t k_f,
-			index_t	 dim);
+			index_t* facets_nn, index_t f_p,
+			index_t dim);
 
 		/*
 		 * \brief Destruction. now it does nothing.
@@ -103,7 +103,7 @@ namespace Gpu_Rvd{
 		const index_t* facets_;
 		index_t facet_nb_;
 
-		index_t k_, f_k;
+		index_t k_;
 		const index_t* points_nn_;
 		const index_t* facets_nn_;
 
@@ -119,8 +119,6 @@ namespace Gpu_Rvd{
 
 		double* dev_seeds_info_;
 		int*	dev_seeds_poly_nb;
-
-		DeviceMemoryMode mode_;
 	};
 
 }
