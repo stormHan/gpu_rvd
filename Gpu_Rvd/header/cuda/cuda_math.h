@@ -89,7 +89,7 @@ namespace Gpu_Rvd{
 		double3& Vg, double& V
 		)
 	{
-		double abc = a + b + c;
+		/*double abc = a + b + c;
 		double area = computeTriangleArea(p, q, r);
 		V = area / 3.0 * abc;
 
@@ -100,7 +100,12 @@ namespace Gpu_Rvd{
 		double s = area / 12.0;
 		Vg.x = s * (wp * p.x + wq * q.x + wr * r.x);
 		Vg.y = s * (wp * p.y + wq * q.y + wr * r.y);
-		Vg.z = s * (wp * p.z + wq * q.z + wr * r.z);
+		Vg.z = s * (wp * p.z + wq * q.z + wr * r.z);*/
+
+		double area = computeTriangleArea(p, q, r);
+		Vg.x = (p.x + q.x + r.x) / 3.0 * area;
+		Vg.y = (p.y + q.y + r.y) / 3.0 * area;
+		Vg.z = (p.z + q.z + r.z) / 3.0 * area;
 	}
 }
 
