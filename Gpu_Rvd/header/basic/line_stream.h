@@ -4,10 +4,11 @@
 */
 
 #include <basic\common.h>
-#include <basic\numeric.h>
 #include <basic\string.h>
 
 namespace Gpu_Rvd{
+
+	using namespace Numeric;
 
 	class LineInput{
 	public:
