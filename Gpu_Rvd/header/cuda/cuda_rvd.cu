@@ -7,83 +7,73 @@
 
 namespace Gpu_Rvd{
 
-	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p) : 
-		vertex_(m.v_ptr()),
-		vertex_nb_(m.get_vertex_nb()),
-		points_(p.v_ptr()),
-		points_nb_(p.get_vertex_nb()),
-		facets_(m.f_ptr()),
-		facet_nb_(m.get_facet_nb()),
-		k_(p.get_k()),
-		points_nn_(p.get_indices()),
-		facets_nn_(m.get_indices()),
-		dimension_(p.dimension()),
-		dev_vertex_(nil),
-		dev_points_(nil),
-		dev_facets_(nil),
-		dev_points_nn_(nil),
-		dev_facets_nn_(nil),
-		dev_ret_(nil),
-		host_ret_(nil),
-		dev_seeds_info_(nil),
-		dev_seeds_poly_nb(nil)
-	{
+	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p, int iter, int k){
+		vertex_ = m.v_ptr();
+		vertex_nb_ = m.get_vertex_nb();
+		points_ = p.v_ptr();
+		points_nb_ = p.get_vertex_nb();
+		facets_ = m.f_ptr();
+		facet_nb_ = m.get_facet_nb();
+		
+		k_ = k;
+		points_nn_ = (index_t*)malloc(sizeof(index_t) * k_ * points_nb_);
+		facets_nn_ = (index_t*)malloc(sizeof(index_t) * facet_nb_);
+		dimension_ = m.dimension();
+
+		dev_vertex_ = nil;
+		dev_points_ = nil;
+		dev_facets_ = nil;
+		dev_points_nn_ = nil;
+		dev_facets_nn_ = nil;
+		dev_ret_ = nil;
+		dev_seeds_info_ = nil;
+		dev_seeds_poly_nb = nil;
+
+		mesh_ = &m;
+		x_ = &p;
+
+		knn_ = new CudaKNearestNeighbor(p, m, 1);
+		iter_nb_ = iter;
+
+		is_store_ = true;
+		store_filename_counter_ = 0;
 	}
 
-	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p, index_t k, const index_t* points_nn, const index_t* facets_nn) :
-		vertex_(m.v_ptr()),
-		vertex_nb_(m.get_vertex_nb()),
-		points_(p.v_ptr()),
-		points_nb_(p.get_vertex_nb()),
-		facets_(m.f_ptr()),
-		facet_nb_(m.get_facet_nb()),
-		k_(k),
-		points_nn_(points_nn),
-		facets_nn_(facets_nn),
-		dimension_(p.dimension()),
-		dev_vertex_(nil),
-		dev_points_(nil),
-		dev_facets_(nil),
-		dev_points_nn_(nil),
-		dev_facets_nn_(nil),
-		dev_ret_(nil),
-		host_ret_(nil),
-		dev_seeds_info_(nil),
-		dev_seeds_poly_nb(nil)
-	{
-	}
-
-	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(
-		const double* vertex, index_t vertex_nb,
-		const double* points, index_t points_nb,
-		const index_t* facets, index_t facets_nb,
-		index_t* points_nn, index_t k_p,
-		index_t* facets_nn, index_t k_f,
-		index_t dim) :
-		vertex_(vertex),
-		vertex_nb_(vertex_nb),
-		points_(points),
-		points_nb_(points_nb),
-		facets_(facets),
-		facet_nb_(facets_nb),
-		k_(k_p),
-		points_nn_(points_nn),
-		facets_nn_(facets_nn),
-		dimension_(dim),
-		dev_vertex_(nil),
-		dev_points_(nil),
-		dev_facets_(nil),
-		dev_points_nn_(nil),
-		dev_facets_nn_(nil),
-		dev_ret_(nil),
-		host_ret_(nil),
-		dev_seeds_info_(nil),
-		dev_seeds_poly_nb(nil)
-	{
-	}
+	//CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p, index_t k, const index_t* points_nn, const index_t* facets_nn) :
+	//	vertex_(m.v_ptr()),
+	//	vertex_nb_(m.get_vertex_nb()),
+	//	points_(p.v_ptr()),
+	//	points_nb_(p.get_vertex_nb()),
+	//	facets_(m.f_ptr()),
+	//	facet_nb_(m.get_facet_nb()),
+	//	k_(k),
+	//	points_nn_(points_nn),
+	//	facets_nn_(facets_nn),
+	//	dimension_(p.dimension()),
+	//	dev_vertex_(nil),
+	//	dev_points_(nil),
+	//	dev_facets_(nil),
+	//	dev_points_nn_(nil),
+	//	dev_facets_nn_(nil),
+	//	dev_ret_(nil),
+	//	host_ret_(nil),
+	//	dev_seeds_info_(nil),
+	//	dev_seeds_poly_nb(nil)
+	//{
+	//}
 
 	CudaRestrictedVoronoiDiagram::~CudaRestrictedVoronoiDiagram()
 	{
+		if (points_nn_ != nil){
+			free(points_nn_);
+			points_nn_ = nil;
+		}
+		if (facets_nn_ != nil){
+			free(facets_nn_);
+			facets_nn_ = nil;
+		}
+
+		delete knn_;
 	}
 
 	/*
@@ -432,10 +422,10 @@ namespace Gpu_Rvd{
 				);
 
 			//now we get the clipped polygon stored in "polygon", do something.
-			/*action(
+			action(
 				current_polygon,
 				current_seed
-				);*/
+				);
 			//retdata[tid * 400]
 			if (counter < 10 && tid < facets_nb)
 				store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
@@ -469,38 +459,76 @@ namespace Gpu_Rvd{
 
 
 		//retdata[tid] = has_visited_nb;
-		/*for (index_t i = 0; i < points_nb * 4; ++i){
+		for (index_t i = 0; i < points_nb * 4; ++i){
 			retdata[i] = g_seeds_information[i];
-		}*/
+		}
+	}
+
+	void CudaRestrictedVoronoiDiagram::knn_search(){
+		knn_->set_reference(*x_);
+		knn_->set_k(1);
+		knn_->set_query(*mesh_);
+		knn_->search(facets_nn_);
+		knn_->set_k(20);
+		knn_->set_query(*x_);
+		knn_->search(points_nn_);
+	}
+
+	void CudaRestrictedVoronoiDiagram::update_points(){
+		x_->clear();
+
+		for (int i = 0; i < points_nb_; ++i){
+			if (fabs(host_ret_[i * 4 + 3]) >= 1e-12){
+				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
+				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
+				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
+			}
+			x_->add_vertexd(&host_ret_[i * 4], dimension_);
+		}
+
+		if (is_store_){
+			std::string name = "RVD_" + String::to_string(store_filename_counter_) + ".eobj";
+			points_save(name, *x_);
+		}
 	}
 
 	__host__
 	void CudaRestrictedVoronoiDiagram::compute_Rvd(){
-		CudaStopWatcher watcher("compute_rvd");
+		CudaStopWatcher watcher("compute_rvd_global");
 		watcher.start();
 
 		allocate_and_copy(GLOBAL_MEMORY);
-		//might be improved dim3 type.
-		int threads = 512;
-		int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
-		//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
-		//dim3 threads(1, 1, 1);
-		kernel << < threads, blocks >> > (
-			dev_vertex_, vertex_nb_,
-			dev_points_, points_nb_,
-			dev_facets_, facet_nb_,
-			dev_points_nn_, k_,
-			dev_facets_nn_, dimension_,
-			dev_ret_
-			);
-		CheckCUDAError("kernel function");
-		copy_back();
+
+		for (index_t t = 0; t < iter_nb_; ++t){
+			knn_search();
+			cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
+			cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
+			cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
+
+			//might be improved dim3 type.
+			int threads = 512;
+			int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
+			//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
+			//dim3 threads(1, 1, 1);
+			kernel << < threads, blocks >> > (
+				dev_vertex_, vertex_nb_,
+				dev_points_, points_nb_,
+				dev_facets_, facet_nb_,
+				dev_points_nn_, k_,
+				dev_facets_nn_, dimension_,
+				dev_ret_
+				);
+			CheckCUDAError("kernel function");
+			copy_back();
+			update_points();
+		}
+		
 		watcher.stop();
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
 		
-		std::string out_file("..//out//bunny_points.txt");
-		print_return_data(out_file);
+		//std::string out_file("..//out//bunny_points.txt");
+		//print_return_data(out_file);
 		free_memory();
 	}
 
@@ -508,9 +536,14 @@ namespace Gpu_Rvd{
 	void CudaRestrictedVoronoiDiagram::allocate_and_copy(DeviceMemoryMode mode){
 		unsigned int free_memory, total_memory;
 		cuMemGetInfo(&free_memory, &total_memory);
-		printf("%uBytes\n", free_memory);
-		//host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
-		host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
+		std::cerr << "Avaiable GPU memory : " 
+			<< free_memory
+			<< " Bytes" 
+			<< " (Total memory : "
+			<< total_memory
+			<< std::endl;
+		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
+		//host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
 		cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
 		cudaMemcpyToSymbol(g_seeds_information, &dev_seeds_info_, sizeof(double*), size_t(0), cudaMemcpyHostToDevice);
 		cudaMalloc((void**)&dev_seeds_poly_nb, INT_SIZE * points_nb_);
@@ -529,18 +562,23 @@ namespace Gpu_Rvd{
 			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
 
 			//Output result.
-			cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
-			//cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
+			//cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
+			cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
 			CheckCUDAError("Allocating device memory");
 
 			//Copy
 			cudaMemcpy(dev_vertex_, vertex_, DOUBLE_SIZE * vertex_nb_ * dimension_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
+			//cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
 			cudaMemcpy(dev_facets_, facets_, sizeof(index_t) * facet_nb_ * dimension_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
+			//cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
+			//cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
 			cuMemGetInfo(&free_memory, &total_memory);
-			printf("%uBytes\n", free_memory);
+			std::cerr << "Left GPU memory : "
+				<< free_memory
+				<< " Bytes"
+				<< " (Total memory : "
+				<< total_memory
+				<< std::endl;
 			CheckCUDAError("Copying data from host to device");
 		}
 			break;
@@ -587,21 +625,21 @@ namespace Gpu_Rvd{
 
 	__host__
 	void CudaRestrictedVoronoiDiagram::copy_back(){
-		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
-		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
+		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
+		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
 		CheckCUDAError("copy back");
 	}
 
 	__host__
 		void CudaRestrictedVoronoiDiagram::print_return_data(std::string filename) const{
-		/*for (int i = 0; i < points_nb_; ++i)
+		for (int i = 0; i < points_nb_; ++i)
 		{
 			if (fabs(host_ret_[i * 4 + 3]) >= 1e-12){
 				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
 			}
-		}*/
+		}
 		index_t line_num = 4;
 		std::ofstream f;
 		f.open(filename);

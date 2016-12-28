@@ -11,7 +11,9 @@
 #include <cuda\cuda_math.h>
 #include <cuda\cuda_stop_watcher.h>
 #include <cuda\cuda_polygon.h>
+#include <cuda\cuda_knn.h>
 #include <mesh\mesh.h>
+#include <mesh\mesh_io.h>
 #include "cuda.h"
 #include <fstream>
 #include <iomanip>
@@ -20,29 +22,17 @@ namespace Gpu_Rvd{
 
 	class CudaRestrictedVoronoiDiagram{
 	public:
-		CudaRestrictedVoronoiDiagram();
 
 		/*
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh m, Points p);
+		CudaRestrictedVoronoiDiagram(Mesh m, Points p, int iter, int k = 20);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
 		 */
 		CudaRestrictedVoronoiDiagram(Mesh m, Points p, index_t k, const index_t* points_nn, const index_t* facets_nn);
-
-		/*
-		 * \brief 
-		 */
-		CudaRestrictedVoronoiDiagram(
-			const double* vertex, index_t vertex_nb,
-			const double* points, index_t points_nb,
-			const index_t* facets, index_t facets_nb,
-			index_t* points_nn, index_t k_p,
-			index_t* facets_nn, index_t f_p,
-			index_t dim);
 
 		/*
 		 * \brief Destruction. now it does nothing.
@@ -54,7 +44,10 @@ namespace Gpu_Rvd{
 		 */
 		void compute_Rvd();
 
-	protected:
+		bool is_store(){ return is_store_; }
+		void set_if_store(bool x) { is_store_ = x; }
+
+ 	protected:
 		enum DeviceMemoryMode{
 			GLOBAL_MEMORY = 0,
 			CONSTANT_MEMORY = 1,
@@ -73,9 +66,19 @@ namespace Gpu_Rvd{
 		void free_memory();
 
 		/*
+		 * \brief Uses CudaKNearestNeighbor to find the knn of points and facets
+		 */
+		void knn_search();
+
+		/*
 		 * \brief Copies back the data from device to host.
 		 */
 		void copy_back();
+
+		/*
+		 * \breif Updatas the result from GPU to points for the next iteration
+		 */
+		void update_points();
 
 		/*
 		 * \brief Prints the return data for convenient debug.
@@ -94,21 +97,22 @@ namespace Gpu_Rvd{
 			}
 		}
 	private:
+		//CPU data
 		const double* vertex_;
 		index_t vertex_nb_;
-
 		const double* points_;
 		index_t points_nb_;
-
 		const index_t* facets_;
 		index_t facet_nb_;
 
+		//Knn 
 		index_t k_;
-		const index_t* points_nn_;
-		const index_t* facets_nn_;
+		index_t* points_nn_;
+		index_t* facets_nn_;
 
 		index_t dimension_;
 
+		//GPU data
 		double* dev_vertex_;
 		double* dev_points_;
 		index_t* dev_facets_;
@@ -119,6 +123,15 @@ namespace Gpu_Rvd{
 
 		double* dev_seeds_info_;
 		int*	dev_seeds_poly_nb;
+
+		Mesh* mesh_;
+		Points* x_;
+
+		CudaKNearestNeighbor* knn_;
+		int iter_nb_;
+
+		bool is_store_;
+		int store_filename_counter_;
 	};
 
 }
