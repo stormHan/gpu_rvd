@@ -12,10 +12,14 @@
 #include <cuda\cuda_rvd.h>
 #include <cuda\cuda_knn.h>
 
+#include <ctime>
+
 #define KNN
 
 int main(int argc, char** argv){
 	using namespace Gpu_Rvd;
+	srand((unsigned int)time(0));
+	const index_t iteration = 20;
 
 	StopWatch S("total task");
 	Cmd::Mode mode = Cmd::Host_Device;
@@ -41,27 +45,33 @@ int main(int argc, char** argv){
 		return 1;
 	}
 
-	if (!points_load_obj(points_filename, Points_in)){
+	/*if (!points_load_obj(points_filename, Points_in)){
 		fprintf(stderr, "cannot load the points from the %s path", points_filename);
+		return 1;
+	}*/
+	M_in.init_samples(Points_in, 1000);
+	
+	if (!points_save(output_filename, Points_in)){
+		std::cerr << "cannot save the points data" << std::endl;
 		return 1;
 	}
 	
-
+	
 #ifdef KNN
-	CudaKNearestNeighbor cudaknn(Points_in, M_in, 1);
-	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
-	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
+	//CudaKNearestNeighbor cudaknn(Points_in, M_in, 1);
+	//index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
+	//index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
 
-	cudaknn.search(facets_nn);
-	/*freopen("..//test//S2_facets_nn.txt", "w", stdout);
-	for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
-	printf("%d ", facets_nn[t]);
-	if (t % 20 == 19) printf("\n");
-	}*/
+	//cudaknn.search(facets_nn);
+	///*freopen("..//test//S2_facets_nn.txt", "w", stdout);
+	//for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
+	//printf("%d ", facets_nn[t]);
+	//if (t % 20 == 19) printf("\n");
+	//}*/
 
-	cudaknn.set_query(Points_in);
-	cudaknn.set_k(20);
-	cudaknn.search(points_nn);
+	//cudaknn.set_query(Points_in);
+	//cudaknn.set_k(20);
+	//cudaknn.search(points_nn);
 	/*freopen("..//test//S2_points_nn.txt", "w", stdout);
 	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
 	printf("%d ", points_nn[t]);
@@ -101,7 +111,7 @@ int main(int argc, char** argv){
 		printf("%d ", i);
 	}*/
 #endif
-	CudaRestrictedVoronoiDiagram RVD(
+	/*CudaRestrictedVoronoiDiagram RVD(
 		M_in.v_ptr(),			M_in.get_vertex_nb(),
 		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
 		M_in.f_ptr(),			M_in.get_facet_nb(),
@@ -110,18 +120,18 @@ int main(int argc, char** argv){
 		Points_in.dimension()
 		);
 
-	RVD.compute_Rvd();
+	RVD.compute_Rvd();*/
 
 	S.print_elaspsed_time(std::cout);
 
-	if (points_nn != nil){
+	/*if (points_nn != nil){
 		free(points_nn);
 		points_nn = nil;
 	}
 	if (facets_nn != nil){
 		free(facets_nn);
 		facets_nn = nil;
-	}
+	}*/
 	getchar();
 	return 0;
 }
