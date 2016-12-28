@@ -278,6 +278,11 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::set_reference(const Points& p){
+		if (p.get_vertex_nb() > ref_nb_){
+			free(ref_);
+			ref_ = (float*)malloc(sizeof(float) * p.get_vertex_nb());
+			ref_nb_ = p.get_vertex_nb();
+		}
 		ref_nb_ = p.get_vertex_nb();
 
 		for (index_t t = 0; t < ref_nb_; ++t){
