@@ -27,7 +27,7 @@ namespace Gpu_Rvd{
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh m, Points p, int iter, int k = 20);
+		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
@@ -95,6 +95,31 @@ namespace Gpu_Rvd{
 				fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString(err));
 				exit(EXIT_FAILURE);
 			}
+		}
+
+		template <typename T>
+		bool result_print(std::string filename, const T* address, int total_nb, int line_nb){
+			std::ofstream out(filename.c_str());
+			if (!out){
+				std::cerr
+					<< "Could not create file <"
+					<< filename
+					<< ">"
+					<< std::endl;
+				return false;
+			}
+			out << "# filename: " << filename << std::endl;
+			int c = 0;
+			for (int i = 0; i < total_nb; ++i){
+				out << address[i] << " ";
+				c++;
+				if (line_nb == c){
+					out << std::endl;
+					c = 0;
+				}
+				
+			}
+			return true;
 		}
 	private:
 		//CPU data
