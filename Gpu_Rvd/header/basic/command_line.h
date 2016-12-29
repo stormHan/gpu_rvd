@@ -22,7 +22,7 @@ namespace Gpu_Rvd{
 			parse the command line.
 
 		*/
-		bool parse_argu(index_t argument_nb, char** argument, std::vector<std::string>& filenames, Mode& mode);
+		bool parse_argu(index_t argument_nb, char** argument, std::vector<std::string>& filenames);
 
 	}
 }
