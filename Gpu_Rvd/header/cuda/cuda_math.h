@@ -69,18 +69,23 @@ namespace Gpu_Rvd{
 	}
 
 	__device__
-	inline double computeTriangleArea(double3 p1, double3 p2, double3 p3)
-	{
-		double a = distance(p1, p2);
-		double b = distance(p2, p3);
-		double c = distance(p1, p3);
+		inline double3 cross(double3 v1, double3 v2){
+		double3 d = {
+			v1.y*v2.z - v1.z*v2.y,
+			v1.z*v2.x - v1.x*v2.z,
+			v1.x*v2.y - v1.y*v2.x
+		};
+		return d;
+	}
 
-		//Heron's Formula to compute the area of the triangle
-		double p = (a + b + c) / 2;
-		if (p >= a && p >= b && p >= c)
-			return sqrt(p * (p - a) * (p - b) * (p - c));
-		else
-			return 0.0;
+	__device__
+		inline double length(double3 v){
+		return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+	}
+	__device__
+	inline double computeTriangleArea(double3 v1, double3 v2, double3 v3)
+	{
+		return 0.5 * length(cross(sub(v2, v1), sub(v3, v1)));
 	}
 
 	__device__
@@ -102,10 +107,10 @@ namespace Gpu_Rvd{
 		Vg.y = s * (wp * p.y + wq * q.y + wr * r.y);
 		Vg.z = s * (wp * p.z + wq * q.z + wr * r.z);*/
 
-		double area = computeTriangleArea(p, q, r);
-		Vg.x = (p.x + q.x + r.x) / 3.0 * area;
-		Vg.y = (p.y + q.y + r.y) / 3.0 * area;
-		Vg.z = (p.z + q.z + r.z) / 3.0 * area;
+		V = computeTriangleArea(p, q, r);
+		Vg.x = (p.x + q.x + r.x) / 3.0 * V;
+		Vg.y = (p.y + q.y + r.y) / 3.0 * V;
+		Vg.z = (p.z + q.z + r.z) / 3.0 * V;
 	}
 }
 
