@@ -8,6 +8,7 @@
 #define MESH_MESH_H
 
 #include <basic\common.h>
+#include <basic\math_op.h>
 #include <mesh\mesh_nn.h>
 
 namespace Gpu_Rvd{
@@ -21,11 +22,22 @@ namespace Gpu_Rvd{
 		 */
 		//Points(Mesh m);
 
+		virtual ~Points(){}
 		/*
 		 * \brief Gets the dimension fo the Points.
 		 */
 		const index_t dimension() const{
 			return dimension_; 
+		}
+
+		/*
+		 * \brief clear the Points
+		 */
+		void clear() {
+			vertexf_.resize(0);
+			vertexd_.resize(0);
+			vertex_nb_ = 0;
+			points_nn_.clear();
 		}
 
 		/*
@@ -52,6 +64,11 @@ namespace Gpu_Rvd{
 		* \brief Adds a vertex(double) which data is std::vector<double>.
 		*/
 		void add_vertexd(const std::vector<double>& p);
+
+		/*
+		 * \brief Adds a vertex(double) which data is in vec3
+		 */
+		void add_vertexd(const vec3& p);
 
 		/*
 		 * \breif Gets the vertex number.
@@ -120,6 +137,8 @@ namespace Gpu_Rvd{
 
 		//Mesh(const Mesh& M);
 
+		~Mesh(){}
+
 		const index_t* get_facet(index_t t) const;
 
 		void add_facet(const index_t* p, index_t dim);
@@ -132,7 +151,10 @@ namespace Gpu_Rvd{
 			return &facet_[0];
 		}
 
-
+		/*
+		 * \brief Sample random points in triangle surface.
+		 */
+		void init_samples(Points& p, index_t nb);
 	private:
 		
 		std::vector<index_t>	facet_;

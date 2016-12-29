@@ -33,6 +33,7 @@ namespace Gpu_Rvd{
 	save the mesh.
 	*/
 
+	bool points_save(const std::string& filename, Points& p);
 }
 
 #endif /* MESH_MESH_IO_H */
