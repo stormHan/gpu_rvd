@@ -253,7 +253,9 @@ namespace Gpu_Rvd{
 		k_(k),
 		dim_(p.dimension())
 	{
-		memory_allc(p.get_vertex_nb(), m.get_facet_nb());
+		query_nb_ = Math::max_(p.get_vertex_nb() * k, m.get_facet_nb());
+		ref_nb_ = p.get_vertex_nb();
+		memory_allc(ref_nb_, query_nb_);
 		set_reference(p);
 		set_query(m);
 	}
@@ -278,11 +280,6 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::set_reference(const Points& p){
-		if (p.get_vertex_nb() > ref_nb_){
-			free(ref_);
-			ref_ = (float*)malloc(sizeof(float) * p.get_vertex_nb());
-			ref_nb_ = p.get_vertex_nb();
-		}
 		ref_nb_ = p.get_vertex_nb();
 
 		for (index_t t = 0; t < ref_nb_; ++t){
@@ -293,13 +290,7 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::set_query(const Points& p){
-		int nb = p.get_vertex_nb();
-		if (query_nb_ != nb){
-			free(query_);
-			query_ = (float*)malloc(sizeof(float) * nb * dim_);
-			query_nb_ = nb;
-		}
-
+		query_nb_ = p.get_vertex_nb();
 		for (index_t t = 0; t < query_nb_; ++t){
 			query_[t] = (float)p.get_vertexd(t)[0];
 			query_[t + query_nb_] = (float)p.get_vertexd(t)[1];
@@ -308,12 +299,7 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::set_query(const Mesh& m){
-		int nb = m.get_facet_nb();
-		if (query_nb_ != nb){
-			free(query_);
-			query_ = (float*)malloc(sizeof(float) * nb * dim_);
-			query_nb_ = nb;
-		}
+		query_nb_ = m.get_facet_nb();
 		
 		index_t f1 = -1, f2 = -1, f3 = -1;
 		float* tv = (float*)malloc(dim_ * sizeof(float));
@@ -335,13 +321,13 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaKNearestNeighbor::search(index_t* result){
-		if (k_ * query_nb_ > malloc_nb_){
+		/*if (k_ * query_nb_ > malloc_nb_){
 			free(dist_);
 			free(ind_);
 			malloc_nb_ = k_ * query_nb_;
 			dist_ = (float*)malloc(malloc_nb_ * sizeof(float));
 			ind_ = (int*)malloc(malloc_nb_ * sizeof(int));
-		}
+		}*/
 		knn(ref_, ref_nb_, query_, query_nb_, dim_, k_, dist_, ind_);
 
 		//already got the index
