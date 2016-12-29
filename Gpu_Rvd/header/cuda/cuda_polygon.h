@@ -28,7 +28,7 @@ namespace Gpu_Rvd{
 	*/
 	struct CudaPolygon
 	{
-		CudaVertex vertex[10];
+		CudaVertex vertex[20];
 		index_t vertex_nb;
 	};
 }
