@@ -8,6 +8,7 @@
 #include <basic\common.h>
 #include <basic\numeric.h>
 
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <stdlib.h>
@@ -21,6 +22,14 @@ namespace Gpu_Rvd{
 	 *\breif String manipulation utilities
 	 */
 	namespace String{
+		using namespace Numeric;
+
+		template <typename T>
+		inline std::string to_string(const T& value){
+			std::ostringstream out;
+			out << value;
+			return out.str();
+		}
 
 		template <class T>
 		inline bool from_string(const char* s, T& value) {
