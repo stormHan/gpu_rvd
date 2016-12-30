@@ -7,18 +7,18 @@
 
 namespace Gpu_Rvd{
 
-	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p, int iter, int k){
-		vertex_ = m.v_ptr();
-		vertex_nb_ = m.get_vertex_nb();
-		points_ = p.v_ptr();
-		points_nb_ = p.get_vertex_nb();
-		facets_ = m.f_ptr();
-		facet_nb_ = m.get_facet_nb();
+	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k){
+		vertex_ = m->v_ptr();
+		vertex_nb_ = m->get_vertex_nb();
+		points_ = p->v_ptr();
+		points_nb_ = p->get_vertex_nb();
+		facets_ = m->f_ptr();
+		facet_nb_ = m->get_facet_nb();
 		
 		k_ = k;
 		points_nn_ = (index_t*)malloc(sizeof(index_t) * k_ * points_nb_);
 		facets_nn_ = (index_t*)malloc(sizeof(index_t) * facet_nb_);
-		dimension_ = m.dimension();
+		dimension_ = m->dimension();
 
 		dev_vertex_ = nil;
 		dev_points_ = nil;
@@ -29,10 +29,10 @@ namespace Gpu_Rvd{
 		dev_seeds_info_ = nil;
 		dev_seeds_poly_nb = nil;
 
-		mesh_ = &m;
-		x_ = &p;
+		mesh_ = m;
+		x_ = p;
 
-		knn_ = new CudaKNearestNeighbor(p, m, 1);
+		knn_ = new CudaKNearestNeighbor(*p, *m, k_);
 		iter_nb_ = iter;
 
 		is_store_ = true;
@@ -133,7 +133,7 @@ namespace Gpu_Rvd{
 			d3 = polygon.vertex[_v3].w;
 
 			computeTriangleCentriod(pos1, pos2, pos3, d1, d2, d3, centriodTimesWeight, total_weight);
-
+			
 			current_weight += total_weight;
 			current_posTimesWeight.x += centriodTimesWeight.x;
 			current_posTimesWeight.y += centriodTimesWeight.y;
@@ -142,21 +142,10 @@ namespace Gpu_Rvd{
 			total_weight = 0.0;
 			centriodTimesWeight = { 0.0, 0.0, 0.0 };
 		}
-
-		if (triangle_nb > 0){
-			current_weight /= triangle_nb;
-
-			double3 temp_pos;
-
-			temp_pos.x = current_posTimesWeight.x / triangle_nb;
-			temp_pos.y = current_posTimesWeight.y / triangle_nb;
-			temp_pos.z = current_posTimesWeight.z / triangle_nb;
-
-			MyAtomicAdd(&g_seeds_information[current_seed * 4 + 0], temp_pos.x);
-			MyAtomicAdd(&g_seeds_information[current_seed * 4 + 1], temp_pos.y);
-			MyAtomicAdd(&g_seeds_information[current_seed * 4 + 2], temp_pos.z);
-			MyAtomicAdd(&g_seeds_information[current_seed * 4 + 3], current_weight);
-			}
+		MyAtomicAdd(&g_seeds_information[current_seed * 4 + 0], current_posTimesWeight.x);
+		MyAtomicAdd(&g_seeds_information[current_seed * 4 + 1], current_posTimesWeight.y);
+		MyAtomicAdd(&g_seeds_information[current_seed * 4 + 2], current_posTimesWeight.z);
+		MyAtomicAdd(&g_seeds_information[current_seed * 4 + 3], current_weight);
 		
 	}
 
@@ -183,7 +172,7 @@ namespace Gpu_Rvd{
 		// and m the middle point of the bisector.
 		double d = 0.0;
 		d = dot(add(position_i, position_j), sub(position_i, position_j));
-
+		
 		//The predecessor of the first vertex is the last vertex
 		index_t prev_k = ping.vertex_nb - 1;
 
@@ -197,7 +186,7 @@ namespace Gpu_Rvd{
 		double prev_l = dot(prev_vertex_position, sub(position_i, position_j));
 
 		int prev_status = sgn(2.0 * prev_l - d);
-
+		
 		//traverse the Vertex in this Polygon
 		for (index_t k = 0; k < ping.vertex_nb; ++k){
 
@@ -259,7 +248,7 @@ namespace Gpu_Rvd{
 				pong.vertex[pong.vertex_nb] = *vk;
 				pong.vertex_nb++;
 			}
-
+			
 			prev_vk = vk;
 			prev_vertex_position = vertex_position;
 			prev_status = status;
@@ -290,7 +279,8 @@ namespace Gpu_Rvd{
 		const double* points,
 		index_t points_nb,
 		index_t* points_nn,
-		index_t k
+		index_t k,
+		double* retdata
 	){
 		CudaPolygon polygon_buffer;
 		
@@ -300,7 +290,7 @@ namespace Gpu_Rvd{
 			points[i * 3 + 1],
 			points[i * 3 + 2]
 		};
-
+		
 		for (index_t t = 0; t < k; ++t){
 
 			//load /memory[points_nn] k times.
@@ -325,6 +315,7 @@ namespace Gpu_Rvd{
 				if (dij > 4.1 * R2){
 					return;
 				}
+					
 				clip_by_plane(current_polygon, polygon_buffer, pi, pj, j);
 				swap_polygon(current_polygon, polygon_buffer);
 			}
@@ -354,14 +345,13 @@ namespace Gpu_Rvd{
 		double*			retdata
 		){
 		index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-		if (tid >= facets_nb) return;
 
-		if (tid >= 0 && tid < points_nb){
-			g_seeds_information[tid * 4 + 0] = 0.0;
-			g_seeds_information[tid * 4 + 1] = 0.0;
-			g_seeds_information[tid * 4 + 2] = 0.0;
-			g_seeds_information[tid * 4 + 3] = 0.0;
+		int cur = tid;
+		while (cur < points_nb * 4){
+			g_seeds_information[tid] = 0;
+			cur += facets_nb;
 		}
+		if (tid >= facets_nb) return;
 
 		//load \memory[facet] 3 times.
 		int3 facet_index = {
@@ -406,29 +396,31 @@ namespace Gpu_Rvd{
 		//load \memory[facets_nn] 1 time.
 		to_visit[to_visit_pos++] = facets_nn[tid];
 		has_visited[has_visited_nb++] = to_visit[0];
-		
+
 		index_t counter = 0;
 		while (to_visit_pos){
 			index_t current_seed = to_visit[to_visit_pos - 1];
 			to_visit_pos--;
-			
+		
 			intersection_clip_facet_SR(
 				current_polygon,
 				current_seed,
 				points,
 				points_nb,
 				points_nn,
-				k_p
+				k_p,
+				retdata
 				);
-
+			
+			//atomicAdd(&g_seeds_polygon_nb[current_seed], 1);
 			//now we get the clipped polygon stored in "polygon", do something.
 			action(
 				current_polygon,
 				current_seed
 				);
 			//retdata[tid * 400]
-			if (counter < 10 && tid < facets_nb)
-				store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
+			//if (counter < 10 && tid < facets_nb)
+				//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
 			{
@@ -457,10 +449,20 @@ namespace Gpu_Rvd{
 		}
 		__syncthreads();
 
-
+		//retdata[tid + 1] = has_visited_nb;
+		//[0] = g_seeds_polygon_nb[0];
+		/*for (index_t i = 0; i < points_nb; ++i){
+			retdata[i] = g_seeds_polygon_nb[i];
+		}*/
 		//retdata[tid] = has_visited_nb;
-		for (index_t i = 0; i < points_nb * 4; ++i){
+		/*for (index_t i = 0; i < points_nb * 4; ++i){
 			retdata[i] = g_seeds_information[i];
+		}*/
+
+		cur = tid;
+		while(cur < points_nb * 4){
+			retdata[cur] = g_seeds_information[cur];
+			cur += facets_nb;
 		}
 	}
 
@@ -472,6 +474,9 @@ namespace Gpu_Rvd{
 		knn_->set_k(20);
 		knn_->set_query(*x_);
 		knn_->search(points_nn_);
+
+		//result_print("points_nn.txt", points_nn_, k_ * points_nb_, k_);
+		//result_print("facets_nn.txt", facets_nn_, facet_nb_, 1);
 	}
 
 	void CudaRestrictedVoronoiDiagram::update_points(){
@@ -489,7 +494,9 @@ namespace Gpu_Rvd{
 		if (is_store_){
 			std::string name = "RVD_" + String::to_string(store_filename_counter_) + ".eobj";
 			points_save(name, *x_);
+			store_filename_counter_++;
 		}
+		
 	}
 
 	__host__
@@ -501,26 +508,36 @@ namespace Gpu_Rvd{
 
 		for (index_t t = 0; t < iter_nb_; ++t){
 			knn_search();
-			cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
-			cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
-
-			//might be improved dim3 type.
-			int threads = 512;
-			int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
-			//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
-			//dim3 threads(1, 1, 1);
-			kernel << < threads, blocks >> > (
-				dev_vertex_, vertex_nb_,
-				dev_points_, points_nb_,
-				dev_facets_, facet_nb_,
-				dev_points_nn_, k_,
-				dev_facets_nn_, dimension_,
-				dev_ret_
-				);
-			CheckCUDAError("kernel function");
-			copy_back();
-			update_points();
+			{
+				CudaStopWatcher iter_watcher("iteration");
+				iter_watcher.start();				
+				cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
+				cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
+				cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
+				
+				//might be improved dim3 type.
+				int threads = 256;
+				int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
+				//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
+				//dim3 threads(1, 1, 1);
+				kernel << < blocks, threads >> > (
+					dev_vertex_, vertex_nb_,
+					dev_points_, points_nb_,
+					dev_facets_, facet_nb_,
+					dev_points_nn_, k_,
+					dev_facets_nn_, dimension_,
+					dev_ret_
+					);
+				CheckCUDAError("kernel function");
+				
+				copy_back();
+				//result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
+				//is_store_ = false;
+				update_points();
+				iter_watcher.stop();
+				iter_watcher.synchronize();
+				iter_watcher.print_elaspsed_time(std::cout);
+			}
 		}
 		
 		watcher.stop();
@@ -541,7 +558,9 @@ namespace Gpu_Rvd{
 			<< " Bytes" 
 			<< " (Total memory : "
 			<< total_memory
-			<< std::endl;
+			<< " Bytes)"
+			<< std::endl
+			<< "Starting cudaMalloc..\n";
 		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
 		//host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
 		cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
@@ -578,6 +597,7 @@ namespace Gpu_Rvd{
 				<< " Bytes"
 				<< " (Total memory : "
 				<< total_memory
+				<< " Bytes)"
 				<< std::endl;
 			CheckCUDAError("Copying data from host to device");
 		}
