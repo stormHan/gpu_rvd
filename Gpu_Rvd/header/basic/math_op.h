@@ -51,7 +51,10 @@ namespace Gpu_Rvd{
 			return (1 - s - t)*p1 + s*p2 + t*p3;
 		}
 		
-
+		template <class T>
+		inline T max_(const T& n1, const T& n2){
+			return (n1 > n2) ? n1 : n2;
+		}
 	}
 
 }
