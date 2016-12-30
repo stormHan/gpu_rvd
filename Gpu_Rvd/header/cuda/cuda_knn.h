@@ -42,12 +42,12 @@ namespace Gpu_Rvd{
 		void knn(float* ref_host, int ref_width, float* query_host, int query_width,
 			int height, int k, float* dist_host, int* ind_host);
 
-		void memory_allc(int ref_nb, int query_nb){
-			ref_ = (float*)malloc(ref_nb * dim_ * sizeof(float));
-			query_ = (float*)malloc(query_nb * dim_ * sizeof(float));
-			dist_ = (float*)malloc(query_nb * k_ * sizeof(float));
-			ind_ = (int*)malloc(query_nb * k_ * sizeof(int));
-			malloc_nb_ = query_nb * k_;
+		void memory_allc(int max_ref_nb, int max_query_nb){
+			ref_ = (float*)malloc(max_ref_nb * dim_ * sizeof(float));
+			query_ = (float*)malloc(max_query_nb * dim_ * sizeof(float));
+			dist_ = (float*)malloc(max_query_nb * k_ * sizeof(float));
+			ind_ = (int*)malloc(max_query_nb * k_ * sizeof(int));
+			malloc_nb_ = max_query_nb * k_;
 		};
 
 		float*	ref_;
