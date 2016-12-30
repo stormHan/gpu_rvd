@@ -72,5 +72,30 @@ namespace Gpu_Rvd{
 	typedef vec3g<Real> vec3;
 	typedef vec2g<Real> vec2;
 
+	enum Sign{
+		NEGATIVE = -1,
+		ZERO = 0,
+		POSITIVE = 1
+	};
+
+	template <class T>
+	inline Sign geo_sgn(const T& x){
+		return (x > 0) ? POSITIVE : (
+			(x < 0) ? NEGATIVE : ZERO;
+		);
+	}
+
+	template <class T>
+	inline T geo_abs(T x){
+		return (x >= 0) ? x : -x;
+	}
+
+	inline index_t max_index_t() {
+		return (std::numeric_limits<index_t>::max)();
+	}
+
+	inline index_t min_index_t() {
+		return (std::numeric_limits<index_t>::min)();
+	}
 }
 #endif /* BASIC_NUMERIC_H */
