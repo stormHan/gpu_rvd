@@ -64,6 +64,40 @@ namespace Gpu_Rvd{
 		bool  is_nan(float32 x);
 
 		bool  is_nan(float64 x);
+
+		/*
+		 * \brief Gets 32 bits float maxinum positive value
+		 */
+		inline float32 max_float32(){
+			return (std::numeric_limits<float32>::max)();
+		}
+
+		/**
+		* \brief Gets 32 bits float minimum negative value
+		*/
+		inline float32 min_float32() {
+			// Note: numeric_limits<>::min() is not
+			// what we want (it returns the smallest
+			// positive non-denormal).
+			return -max_float32();
+		}
+
+		/**
+		* \brief Gets 64 bits float maximum positive value
+		*/
+		inline float64 max_float64() {
+			return (std::numeric_limits<float64>::max)();
+		}
+
+		/**
+		* \brief Gets 64 bits float minimum negative value
+		*/
+		inline float64 min_float64() {
+			// Note: numeric_limits<>::min() is not
+			// what we want (it returns the smallest
+			// positive non-denormal).
+			return -max_float64();
+		}
 	}
 	
 	typedef Numeric::float64 Real;
@@ -88,6 +122,28 @@ namespace Gpu_Rvd{
 	template <class T>
 	inline T geo_abs(T x){
 		return (x >= 0) ? x : -x;
+	}
+
+	template <class T>
+	inline T geo_max(const T& x1, const T& x2){
+		return (x1 >= x2) ? x1 : x2;
+	}
+	
+	template <class T>
+	inline T geo_min(const T& x1, const T& x2){
+		return (x1 <= x2) ? x1 : x2;
+	}
+
+
+	/**
+	* \brief Gets the square value of a value
+	* \param[in] x a value of type \p T
+	* \tparam T the type of the value
+	* \return the square value of \p x
+	*/
+	template <class T>
+	inline T geo_sqr(T x) {
+		return x * x;
 	}
 
 	inline index_t max_index_t() {
