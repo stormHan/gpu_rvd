@@ -251,3 +251,4 @@ paket-files/
 # JetBrains Rider
 .idea/
 *.sln.iml
+Gpu_Rvd/compute_Rvd/facets_nn.txt
