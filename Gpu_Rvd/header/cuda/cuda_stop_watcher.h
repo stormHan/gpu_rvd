@@ -55,7 +55,7 @@ namespace Gpu_Rvd{
 
 			os << "---- Times (ms) ----\n"
 				<< "---- Task :" << name_ << "----"
-				<< "\n  Elapsed time: " << time_
+				<< "  Elapsed time: " << time_
 				<< std::endl;
 		}
 
