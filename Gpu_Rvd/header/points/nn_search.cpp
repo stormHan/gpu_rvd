@@ -45,4 +45,8 @@ namespace Gpu_Rvd{
 
 		return new Kdtree(dimension);
 	}
+
+	bool NearestNeighborSearch::stride_supported() const{
+		return false;
+	}
 }

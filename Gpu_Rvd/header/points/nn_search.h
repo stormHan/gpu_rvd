@@ -79,7 +79,7 @@ namespace Gpu_Rvd{
 		* \brief Sets the points and create the search data structure.
 		* \param[in] nb_points number of points
 		* \param[in] points an array of nb_points * dimension()
-		*/
+		*/ 
 		virtual void set_points(index_t nb_points, const double* points);
 
 		/**
@@ -119,6 +119,13 @@ namespace Gpu_Rvd{
 		virtual void set_exact(bool x){
 			exact_ = x;
 		}
+
+		/**
+		* \brief Tests whether the stride variant of set_points() is supported
+		* \return true if stride different from dimension can be used
+		*  in set_points(), false otherwise
+		*/
+		virtual bool stride_supported() const;
 
 	protected: 
 		NearestNeighborSearch(coords_index_t dimension);
