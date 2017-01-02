@@ -18,6 +18,8 @@
 #include <limits.h>
 namespace Gpu_Rvd{
 
+	
+
 	/*
 	 *\breif String manipulation utilities
 	 */
@@ -37,6 +39,27 @@ namespace Gpu_Rvd{
 			return (in >> value >> std::ws) && in.eof();
 		}
 
+		/**
+		* \brief Conversion exception
+		* \details This exception is thrown by the conversion functions
+		* to_bool(), to_int() and to_double() when a string cannot be
+		* converted to the desired type.
+		*/
+		class  ConversionError : public std::logic_error {
+		public:
+			/**
+			* \brief Constructs a conversion exception
+			* \param[in] s the input string that could not be converted
+			* \param[in] type the expected destination type
+			*/
+			ConversionError::ConversionError(
+				const std::string& s, const std::string& type
+				);
+			/**
+			* \brief Gets the string identifying the exception
+			*/
+			const char* ConversionError::what() const throw ();
+		};
 
 		/**
 		* \brief Converts a std::string to a typed value
@@ -202,6 +225,74 @@ namespace Gpu_Rvd{
 				return true;
 			}
 			return false;
+		}
+
+		/**
+		* \brief Converts a string to an int
+		* \details If the entire string cannot be
+		* converted to an int, the function
+		* throws an exception ConversionError.
+		* \param[in] s the source string
+		* \return the extracted integer value
+		* \see ConversionError
+		*/
+		inline int to_int(const std::string& s) {
+			int value;
+			if (!from_string(s, value)) {
+				throw ConversionError(s, "integer");
+			}
+			return value;
+		}
+
+		/**
+		* \brief Converts a string to an unsigned int
+		* \details If the entire string cannot be
+		* converted to an unsigned int, the function
+		* throws an exception ConversionError.
+		* \param[in] s the source string
+		* \return the extracted integer value
+		* \see ConversionError
+		*/
+		inline unsigned int to_uint(const std::string& s) {
+			unsigned int value;
+			if (!from_string(s, value)) {
+				throw ConversionError(s, "integer");
+			}
+			return value;
+		}
+
+		/**
+		* \brief Converts a string to a double
+		* \details If the entire string cannot be
+		* converted to a double, the function
+		* throws an exception ConversionError.
+		* \param[in] s the source string
+		* \return the extracted double value
+		* \see ConversionError
+		*/
+		inline double to_double(const std::string& s) {
+			double value;
+			if (!from_string(s, value)) {
+				throw ConversionError(s, "double");
+			}
+			return value;
+		}
+
+		/**
+		* \brief Converts a string to a boolean
+		* \details If the entire string cannot be
+		* converted to a boolean, the function
+		* throws an exception ConversionError.
+		* \param[in] s the source string
+		* \return the extracted boolean value
+		* \see ConversionError
+		*/
+		inline bool to_bool(const std::string& s) {
+			bool value;
+			if (!from_string(s, value)) {
+				throw ConversionError(s, "boolean");
+			}
+			return value;
 		}
 	}
 }
