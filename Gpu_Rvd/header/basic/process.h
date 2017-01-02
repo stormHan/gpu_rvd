@@ -3,9 +3,13 @@
  * \basic Function and classes for process manipulation
  */
 
+#ifndef H_BASIC_PROCESS
+#define H_BASIC_PROCESS
+
 #include <basic\common.h>
 #include <basic\counted.h>
 #include <basic\smart_pointer.h>
+#include <functional>
 
 namespace Gpu_Rvd{
 
@@ -65,6 +69,11 @@ namespace Gpu_Rvd{
 		* \param[in] id_in the identifier of this thread.
 		*/
 		void set_id(index_t id_in) {
+			if (id_ == 0){
+				id_ = id_;
+			}
+
+
 			id_ = id_in;
 		}
 
@@ -289,4 +298,364 @@ namespace Gpu_Rvd{
 			ThreadGroup& threads, index_t max_threads
 			);
 	};
+
+	/**
+	 * \brief Abstraction layer for process management and multi-threading
+	 */
+	namespace Process{
+
+		/**
+		* \brief Initializes GeogramLib
+		* \details This function must be called once before using
+		* any functionality of GeogramLib.
+		*/
+		void  initialize();
+
+		/**
+		* \brief Terminates GeogramLib
+		* \details This function is called automatically when the program
+		* exits, so it should never be called directly.
+		*/
+		void  terminate();
+
+		/**
+		* \brief Displays statistics about the current process
+		* \details Displays the maximum used amount of memory.
+		*/
+		void  show_stats();
+
+		/**
+		* \brief Terminates the current process.
+		*/
+		void  brute_force_kill();
+
+		/**
+		* \brief Returns the maximum number of threads that can be running
+		* simultaneously.
+		* \retval The number of cores if multi-threading is supported
+		* \retval 1 otherwise.
+		*/
+		index_t  maximum_concurrent_threads();
+
+		/**
+		* \brief Runs a set of threads simultaneously
+		* \details Launches the execution of the threads contained in the
+		* vector \p threads and waits for the completion of all of them.
+		*/
+		void  run_threads(ThreadGroup& threads);
+
+		/**
+		* \brief Enters a critical section
+		* \details One thread at a time can enter the critical section,
+		* all the other threads that call this function are blocked until the
+		* blocking thread leaves the critical section
+		* \see ThreadManager::enter_critical_section()
+		* \see leave_critical_section()
+		*/
+		void  enter_critical_section();
+
+		/**
+		* \brief Leaves a critical section
+		* \details When a blocking thread leaves a critical section, this
+		* makes the critical section available for a waiting thread.
+		* \see ThreadManager::leave_critical_section()
+		* \see enter_critical_section()
+		*/
+		void  leave_critical_section();
+
+		/**
+		* \brief Gets the number of available cores
+		* \return The number of available cores including the "virtual ones" if
+		* hyper-threading is activated.
+		*/
+		index_t  number_of_cores();
+
+		/**
+		* \brief Sets the thread manager (internal use).
+		* \details This sets the ThreadManager to use for concurrent thread
+		* execution. This function is called internally by
+		* Process::initialize() and should not be called explicitly.
+		* \note For internal use only
+		*/
+		void  set_thread_manager(ThreadManager* thread_manager);
+
+		/**
+		* \brief Checks whether threads are running.
+		* \retval true if concurrent threads are currently running as an
+		* effect to Process::run_threads().
+		* \retval false otherwise.
+		* \see Process::run_threads()
+		*/
+		bool  is_running_threads();
+
+		/**
+		* \brief Enables/disables floating point exceptions
+		* \details If FPEs are enabled, then floating point exceptions
+		* raise a SIGFPE signal, otherwise they generate NaNs. FPEs can also
+		* be configured by setting the value of the property "sys:FPE" with
+		* Environment::set_value().
+		* \param[in] flag set to \c true to enable FPEs, \c false to disable.
+		* \see FPE_enabled()
+		*/
+		void  enable_FPE(bool flag);
+
+		/**
+		* \brief Gets the status of floating point exceptions
+		* \retval true if FPE are enabled
+		* \retval false otherwise
+		* \see enable_FPE()
+		*/
+		bool  FPE_enabled();
+
+		/**
+		* \brief Enables/disables multi-threaded computations
+		* Multi-threading can also be configured by setting the value of the
+		* property "sys:multithread" with Environment::set_value().
+		* \param[in] flag set to \c true to enable multi-threading, \c false
+		* to disable.
+		* \see multithreading_enabled()
+		*/
+		void  enable_multithreading(bool flag);
+
+		/**
+		* \brief Gets the status of multi-threading
+		* \retval true if multi-threading is enabled
+		* \retval false otherwise
+		* \see enable_multithreading()
+		*/
+		bool  multithreading_enabled();
+
+		/**
+		* \brief Limits the number of concurrent threads to use
+		* \details The number of threads can also be configured by setting
+		* the value of the property "sys:max_threads" with
+		* Environment::set_value().
+		* \param[in] num_threads maximum number of threads to use.
+		* \see max_threads()
+		*/
+		void  set_max_threads(index_t num_threads);
+
+		/**
+		* \brief Gets the number of allowed concurrent threads
+		* \see set_max_threads()
+		*/
+		index_t  max_threads();
+
+		/**
+		* \brief Enables interruption of cancelable tasks
+		* \details This allows to interrupt cancelable tasks by typing
+		* CTRL-C in the terminal. This sets a specific handler on the
+		* interrupt signal that calls Progress::cancel() is there is a
+		* running cancelable task. If no task is running, the program is
+		* interrupted. The cancel mode can also be configured by setting the
+		* value of the property "sys:cancel" with
+		* Environment::set_value().
+		* \param[in] flag set to \c true to enable cancel mode, \c false
+		* to disable.
+		* \see cancel_enabled()
+		*/
+		void  enable_cancel(bool flag);
+
+		/**
+		* \brief Gets the status of the cancel mode
+		* \retval true if the cancel mode is enabled
+		* \retval false otherwise
+		* \see enable_cancel()
+		*/
+		bool  cancel_enabled();
+
+		/**
+		* \brief Gets the currently used memory.
+		* \return the used memory in bytes
+		*/
+		size_t  used_memory();
+
+		/**
+		* \brief Gets the maximum used memory.
+		* \return the maximum used memory in bytes
+		*/
+		size_t  max_used_memory();
+
+
+		/**
+		* \brief Gets the full path to the currently
+		*  running program.
+		*/
+		std::string  executable_filename();
+	}
+	/**
+	* \brief Thread class used internally by parallel_for()
+	* \details ParallelForThread is a helper Thread class used internally by
+	* function parallel_for(). It executes a portion of the global loop
+	* controlled by parallel_for(). At each iteration, ParallelForThread
+	* executes an action specified by the template parameter Func
+	* which must be a functional object.
+	* \tparam Func functional object called at each iteration. It must accept a
+	* single argument of type index_t.
+	*/
+	template <class Func>
+	class ParallelForThread : public Thread {
+	public:
+		/**
+		* \brief Creates a thread for the execution of a parallel_for()
+		* \param[in] func the functional object called at each iteration
+		* \param[in] from start index of the loop
+		* \param[in] to stop index of the loop
+		* \param[in] step loop step
+		*/
+		ParallelForThread(
+			const Func& func, index_t from, index_t to, index_t step = 1
+			) :
+			func_(func),
+			from_(from),
+			to_(to),
+			step_(step) {
+		}
+
+		/**
+		* \brief Starts the thread execution
+		* \details It executes the portion of loop configured in the
+		* constructor, calling the functional object at each iteration with
+		* the current iteration index.
+		*/
+		virtual void run() {
+			for (index_t i = from_; i < to_; i += step_) {
+				const_cast<Func&> (func_)(i);
+			}
+		}
+
+	protected:
+		/** ParallelForThread destructor */
+		virtual ~ParallelForThread() {
+		}
+
+	private:
+		const Func& func_;
+		index_t from_;
+		index_t to_;
+		index_t step_;
+	};
+
+	/**
+	* \brief Executes a loop with concurrent threads.
+	*
+	* Executes a parallel for loop from index \p to index \p to, calling
+	* functional object \p func at each iteration.
+	*
+	* Calling parallel_for(func, from, to) is equivalent
+	* to the following loop, computed in parallel:
+	* \code
+	* for(index_t i = from; i < to; i++) {
+	*    func(i)
+	* }
+	* \endcode
+	*
+	* When applicable, iterations are executed by concurrent ParallelForThread
+	* threads: the range of the loop is split in to several contiguous
+	* sub-ranges, each of them being executed by a separate
+	* ParallelForThread.
+	*
+	* If parameter \p interleaved is set to true, the loop range is
+	* decomposed in interleaved index sets that are executed by the
+	* ParallelForThread. Interleaved execution may improve cache coherency.
+	*
+	* \param[in] func functional object that accepts a single argument of
+	* type index_t.
+	* \param[in] from start index of the loop
+	* \param[in] to stop index of the loop
+	* \param[in] threads_per_core number of threads to allocate per physical
+	*  core (default is 1).
+	* \param[in] interleaved if set to \c true, indices are allocated to
+	* threads with an interleaved pattern.
+	*
+	* \tparam Func functional object called at each loop iteration. It
+	* must accept a single argument of type index_t.
+	*
+	* \see ParallelForThread
+	*/
+	template <class Func>
+	inline void parallel_for(
+		const Func& func, index_t from, index_t to,
+		index_t threads_per_core = 1,
+		bool interleaved = false
+		) {
+#ifdef GEO_OS_WINDOWS
+		// TODO: This is a limitation of WindowsThreadManager, to be fixed.
+		threads_per_core = 1;
+#endif
+		index_t nb_threads = geo_min(
+			to - from,
+			Process::maximum_concurrent_threads() * threads_per_core
+			);
+		index_t batch_size = (to - from) / nb_threads;
+		if (Process::is_running_threads() || nb_threads == 1) {
+			for (index_t i = from; i < to; i++) {
+				const_cast<Func&> (func)(i);
+			}
+		}
+		else {
+			ThreadGroup threads;
+			if (interleaved) {
+				for (index_t i = 0; i < nb_threads; i++) {
+					threads.push_back(
+						new ParallelForThread<Func>(
+						func, from + i, to, nb_threads
+						)
+						);
+				}
+			}
+			else {
+				index_t cur = from;
+				for (index_t i = 0; i < nb_threads; i++) {
+					if (i == nb_threads - 1) {
+						threads.push_back(
+							new ParallelForThread<Func>(
+							func, cur, to
+							)
+							);
+					}
+					else {
+						threads.push_back(
+							new ParallelForThread<Func>(
+							func, cur, cur + batch_size
+							)
+							);
+					}
+					cur += batch_size;
+				}
+			}
+			Process::run_threads(threads);
+		}
+	}
+
+	/**
+	* \brief Creates a member callback for parallel_for()
+	* \details This allows to run parallel_for() with a functional object
+	* that calls the member function \p fun on object \p obj.
+	* \par Example:
+	* \code
+	* struct MyClass {
+	*     void iteration(index_t i) { ... }
+	* };
+	* MyClass obj;
+	* parallel_for(
+	*     parallel_for_member_callback(&obj, &MyClass::iteration),
+	*     from, to
+	* );
+	* \endcode
+	* \param[in] obj pointer to an object of type T
+	* \param[in] fun pointer to a void member function of object \p obj that
+	* accepts a single argument of type index_t.
+	* \tparam T type of the target object
+	*/
+	
+
+	template <class T>
+	std::binder1st<std::mem_fun1_t<void, T, index_t> >
+	parallel_for_member_callback(T* obj, void (T::* fun)(index_t)) {
+		return std::bind1st(std::mem_fun(fun), obj);
+	}
 }
+
+#endif
+
