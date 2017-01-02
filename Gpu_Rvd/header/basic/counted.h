@@ -8,6 +8,7 @@
 #define H_BASIC_COUNTED
 
 #include <basic\common.h>
+#include <basic\assert.h>
 
 namespace Gpu_Rvd{
 
@@ -99,7 +100,9 @@ namespace Gpu_Rvd{
 		* through unref(). If the reference counter is not null when the
 		* destructor is called the program dies with an assertion failure.
 		*/
-		virtual ~Counted();
+		virtual ~Counted(){
+			geo_assert(nb_refs_ == 0);
+		}
 	private:
 		/* Forbid copy constructor */
 		Counted(const Counted&);
