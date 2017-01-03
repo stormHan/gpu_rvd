@@ -30,5 +30,30 @@ namespace Gpu_Rvd{
 
 #define nil 0
 
+#ifdef NDEBUG
+#undef GEO_DEBUG
+#undef GEO_PARANOID
+#else
+#define GEO_DEBUG
+#define GEO_PARANOID
+#endif
+
+#if defined(WIN32) || defined(_WIN64)
+
+#define GEO_OS_WINDOWS
+
+#if defined(_MSC_VER)
+# define GEO_COMPILER_MSVC
+#else
+# error "Unsupported compiler"
+#endif
+
+#if defined(_WIN64)
+#  define GEO_ARCH_64
+#else
+#  define GEO_ARCH_32
+#endif
+
+#endif
 }
 #endif /* BASIC_COMMON_H */
