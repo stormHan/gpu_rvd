@@ -27,9 +27,10 @@ namespace Gpu_Rvd{
 			return result;
 		}
 
-		inline void compute_center(const double* p1, const double* p2, const double* p3, index_t dim, float* result){
+		template<typename T>
+		inline void compute_center(const T* p1, const T* p2, const T* p3, index_t dim, T* result){
 			for (coords_index_t t = 0; t < dim; ++t){
-				result[t] = (float)((p1[t] + p2[t] + p3[t]) / 3);
+				result[t] = (T)((p1[t] + p2[t] + p3[t]) / 3);
 			}
 		}
 
