@@ -115,7 +115,7 @@ namespace Gpu_Rvd{
 	template <class T>
 	inline Sign geo_sgn(const T& x){
 		return (x > 0) ? POSITIVE : (
-			(x < 0) ? NEGATIVE : ZERO;
+			(x < 0) ? NEGATIVE : ZERO
 		);
 	}
 
