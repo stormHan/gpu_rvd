@@ -10,7 +10,7 @@
 #include <basic\common.h>
 #include <basic\line_stream.h>
 #include <mesh\mesh.h>
-
+#include <iomanip>
 
 namespace Gpu_Rvd{
 
