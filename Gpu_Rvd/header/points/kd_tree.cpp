@@ -1,5 +1,6 @@
 
 #include <points\kd_tree.h>
+#include <basic\process.h>
 #include <basic\math_op.h>
 
 namespace {
@@ -89,9 +90,23 @@ namespace Gpu_Rvd{
 		}
 
 		//Parallel
-		//...
+		//
+		if (
+			nb_points >= (16 * MAX_LEAF_SIZE) &&
+			Process::maximum_concurrent_threads() > 1
+			){
+			m0_ = 0;
+			m8_ = nb_points;
 
-		create_kd_tree_recursive(1, 0, nb_points);
+			m4_ = split_kd_node(1, m0_, m8_);
+
+			parallel_for(*this, 2, 4);
+			parallel_for(*this, 4, 8);
+			parallel_for(*this, 8, 16);
+		}
+		else{
+			create_kd_tree_recursive(1, 0, nb_points);
+		}
 
 		// Compute the bounding box.
 		for (coords_index_t c = 0; c < dimension(); ++c) {
