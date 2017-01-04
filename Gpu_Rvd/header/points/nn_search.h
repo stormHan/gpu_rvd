@@ -4,6 +4,8 @@
 
 #include <basic\common.h>
 #include <basic\numeric.h>
+#include <basic\smart_pointer.h>
+#include <basic\counted.h>
 /*
  * \file header/points/nn_search.h
  * \brief Abstract interface for nearest neighbor seaching
@@ -11,7 +13,7 @@
 
 namespace Gpu_Rvd{
 
-	class NearestNeighborSearch {
+	class NearestNeighborSearch : public Counted{
 	public:
 		/**
 		* \brief Creates a new search algorithm
@@ -139,6 +141,12 @@ namespace Gpu_Rvd{
 		const double* points_;
 		bool exact_;
 	};
+
+	/**
+	* \brief A smart pointer that contains a NearestNeighborSearch object.
+	* \relates NearestNeighborSearch
+	*/
+	typedef SmartPointer<NearestNeighborSearch> NearestNeighborSearch_var;
 }
 
 
