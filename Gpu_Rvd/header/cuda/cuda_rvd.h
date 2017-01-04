@@ -7,6 +7,7 @@
 #define CUDA_RVD_H
 
 #include <basic\common.h>
+#include <basic\process.h>
 #include <cuda\cuda_common.h>
 #include <cuda\cuda_math.h>
 #include <cuda\cuda_stop_watcher.h>
@@ -14,6 +15,7 @@
 #include <cuda\cuda_knn.h>
 #include <mesh\mesh.h>
 #include <mesh\mesh_io.h>
+#include <points\nn_search.h>
 #include "cuda.h"
 #include <fstream>
 #include <iomanip>
@@ -27,7 +29,7 @@ namespace Gpu_Rvd{
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20);
+		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20, int fk = 20);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
@@ -79,6 +81,22 @@ namespace Gpu_Rvd{
 		 * \breif Updatas the result from GPU to points for the next iteration
 		 */
 		void update_points();
+
+		/**
+		 * \brief Updates the points' neighbors inside.
+		 */
+		void update_neighbors();
+
+		/**
+		 * \brief multi-thread friendly function to search and store
+		 * the neighbors.
+		 */
+		void store_neighbors_CB(index_t v);
+
+		/**
+		 * \brief multi-thread friendly function to search for facets
+		 */
+		void store_f_neighrbors_CB(index_t v);
 
 		/*
 		 * \brief Prints the return data for convenient debug.
@@ -152,11 +170,16 @@ namespace Gpu_Rvd{
 		Mesh* mesh_;
 		Points* x_;
 
-		CudaKNearestNeighbor* knn_;
+		//CudaKNearestNeighbor* knn_;
+		NearestNeighborSearch_var NN_;
+
 		int iter_nb_;
 
 		bool is_store_;
 		int store_filename_counter_;
+
+		index_t fk_;
+		double* facets_center_;
 	};
 
 }
