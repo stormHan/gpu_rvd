@@ -58,7 +58,7 @@ namespace Gpu_Rvd{
 		* \param[in] rhs the smart pointer to copy
 		*/
 		SmartPointer(const SmartPointer<T>& rhs) :
-			pointer_(nil){
+			pointer_(rhs){
 			T::ref(pointer_);
 		}
 
@@ -70,7 +70,7 @@ namespace Gpu_Rvd{
 		* \return this smart pointer
 		*/
 		SmartPointer<T>& operator= (T* ptr){
-			if (ptr != pointer){
+			if (ptr != pointer_){
 				T::unref(pointer_);
 				pointer_ = ptr;
 				T::ref(pointer_);
