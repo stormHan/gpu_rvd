@@ -29,7 +29,7 @@ namespace Gpu_Rvd{
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20, int fk = 20);
+		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20, int fk = 4);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
