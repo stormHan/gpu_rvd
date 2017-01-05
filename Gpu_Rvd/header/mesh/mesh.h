@@ -73,7 +73,9 @@ namespace Gpu_Rvd{
 		/*
 		 * \breif Gets the vertex number.
 		 */
-		const index_t get_vertex_nb() const{ return vertex_nb_; }
+		const index_t get_vertex_nb() const{
+			return vertex_nb_; 
+		}
 
 		/*
 		 * \brief Gets the beginning pointer of the vertex.

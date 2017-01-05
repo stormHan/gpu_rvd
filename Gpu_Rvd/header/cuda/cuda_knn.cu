@@ -302,7 +302,7 @@ namespace Gpu_Rvd{
 		query_nb_ = m.get_facet_nb();
 		
 		index_t f1 = -1, f2 = -1, f3 = -1;
-		float* tv = (float*)malloc(dim_ * sizeof(float));
+		double* tv = (double*)malloc(dim_ * sizeof(double));
 		for (index_t t = 0; t < m.get_facet_nb(); ++t){
 			f1 = m.get_facet(t)[0];
 			f2 = m.get_facet(t)[1];
@@ -314,9 +314,9 @@ namespace Gpu_Rvd{
 				dim_,
 				tv
 				);
-			query_[t] = tv[0];
-			query_[t + query_nb_] = tv[1];
-			query_[t + query_nb_ * 2] = tv[2];
+			query_[t] = (float)tv[0];
+			query_[t + query_nb_] = (float)tv[1];
+			query_[t + query_nb_ * 2] = (float)tv[2];
 		}
 	}
 
