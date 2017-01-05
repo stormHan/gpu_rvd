@@ -6,6 +6,7 @@
 #include <basic\common.h>
 #include <basic\command_line.h>
 #include <basic\stop_watch.h>
+#include <basic\process.h>
 #include <mesh\mesh.h>
 #include <mesh\mesh_io.h>
 #include <cuda\cuda_common.h>
@@ -18,13 +19,14 @@
 
 int main(int argc, char** argv){
 	using namespace Gpu_Rvd;
+	Process::initialize();
+
 	srand((unsigned int)time(0));
-	const index_t iteration = 20;
+	const index_t iteration = 100;
 
 	StopWatch S("total task");
-	Cmd::Mode mode = Cmd::Host_Device;
 	std::vector<std::string> filenames;
-	if (!Cmd::parse_argu(argc, argv, filenames, mode)){
+	if (!Cmd::parse_argu(argc, argv, filenames)){
 		fprintf(stderr, "failed to parse the argument!");
 		return 1;
 	}
@@ -35,7 +37,7 @@ int main(int argc, char** argv){
 	if (filenames.size() >= 2) {
 		points_filename = filenames[1];
 	}
-	output_filename = (filenames.size() == 3) ? filenames[2] : "out.eobj";
+	output_filename = (filenames.size() == 3) ? filenames[2] : "C:\\Users\\JWhan\\Desktop\\DATA\\out.eobj";
 
 	Mesh M_in;
 	Points Points_in;
@@ -44,94 +46,26 @@ int main(int argc, char** argv){
 		fprintf(stderr, "cannot load the mesh from the %s path", mesh_filename);
 		return 1;
 	}
+	//points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\out.eobj";
+	points_filename = "D:\\Project\\Models\\bunny.obj";
 
-	/*if (!points_load_obj(points_filename, Points_in)){
+	if (!points_load_obj(points_filename, Points_in)){
 		fprintf(stderr, "cannot load the points from the %s path", points_filename);
 		return 1;
-	}*/
-	M_in.init_samples(Points_in, 1000);
+	}
+	//M_in.init_samples(Points_in, 200000);
 	
-	if (!points_save(output_filename, Points_in)){
+	/*if (!points_save(output_filename, Points_in)){
 		std::cerr << "cannot save the points data" << std::endl;
 		return 1;
-	}
-	
-	
-#ifdef KNN
-	//CudaKNearestNeighbor cudaknn(Points_in, M_in, 1);
-	//index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
-	//index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
-
-	//cudaknn.search(facets_nn);
-	///*freopen("..//test//S2_facets_nn.txt", "w", stdout);
-	//for (index_t t = 0; t < M_in.get_facet_nb() * 20; ++t){
-	//printf("%d ", facets_nn[t]);
-	//if (t % 20 == 19) printf("\n");
-	//}*/
-
-	//cudaknn.set_query(Points_in);
-	//cudaknn.set_k(20);
-	//cudaknn.search(points_nn);
-	/*freopen("..//test//S2_points_nn.txt", "w", stdout);
-	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
-	printf("%d ", points_nn[t]);
-	if (t % 20 == 19) printf("\n");
 	}*/
-#else
-	// do not use Knn algorigthm, find the Nearest Neighbors by comparing the distance in CPU.
-	//Points_in.search_nn(Points_in.v_ptr(), 3, Points_in.get_vertex_nb(), 20);
 	
-	index_t* points_nn = (index_t*)malloc(sizeof(index_t) * Points_in.get_vertex_nb() * 20);
-	index_t* facets_nn = (index_t*)malloc(sizeof(index_t) * M_in.get_facet_nb());
+	//default settings: k = 20, store_mode
+	CudaRestrictedVoronoiDiagram rvd(&M_in, &Points_in, iteration);
+	rvd.compute_Rvd();
 
-	freopen("..//test//right//bunny_points_nn.txt", "r", stdin);
-	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
-		scanf("%d ", &points_nn[t]);
-	}
-	freopen("..//test//right//bunny_facets_nn.txt", "r", stdin);
-	for (index_t t = 0; t < M_in.get_facet_nb(); ++t){
-		scanf("%d ", &facets_nn[t]);
-	}
-	freopen("CON", "r", stdin);
-	/*freopen("..//test//S2_points_nn", "w", stdout);
-	for (index_t t = 0; t < Points_in.get_vertex_nb() * 20; ++t){
-		printf("%d ", points_nn[t]);
-		if (t % 20 == 19) printf("\n");
-	}
-	printf("\n");
-	for (int i = 0; i < 1000; ++i){
-		printf("%d ", i);
-	}
-	freopen("..//test//S2_facets_nn", "w", stdout);
-	for (index_t t = 0; t < M_in.get_facet_nb(); ++t){
-		printf("%d %d\n",t, facets_nn[t]);
-	}
-	printf("\n");
-	for (int i = 0; i < 1000; ++i){
-		printf("%d ", i);
-	}*/
-#endif
-	/*CudaRestrictedVoronoiDiagram RVD(
-		M_in.v_ptr(),			M_in.get_vertex_nb(),
-		Points_in.v_ptr(),		Points_in.get_vertex_nb(),
-		M_in.f_ptr(),			M_in.get_facet_nb(),
-		points_nn,				20,
-		facets_nn,				1,
-		Points_in.dimension()
-		);
-
-	RVD.compute_Rvd();*/
 
 	S.print_elaspsed_time(std::cout);
-
-	/*if (points_nn != nil){
-		free(points_nn);
-		points_nn = nil;
-	}
-	if (facets_nn != nil){
-		free(facets_nn);
-		facets_nn = nil;
-	}*/
-	getchar();
+	Process::terminate();
 	return 0;
 }
