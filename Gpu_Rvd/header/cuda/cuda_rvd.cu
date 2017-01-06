@@ -406,20 +406,7 @@ namespace Gpu_Rvd{
 		current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
 		current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
 
-		/*index_t current_seed = facets_nn[pid + tid * k_f];
-		intersection_clip_facet_SR(
-			current_polygon,
-			current_seed,
-			points,
-			points_nb,
-			points_nn,
-			k_p
-			);
-		action(
-			current_polygon,
-			current_seed,
-			retdata
-			); return;*/
+		
 		
 		CudaPolygon current_store = current_polygon;
 		//doesn't have the stack?
@@ -428,6 +415,7 @@ namespace Gpu_Rvd{
 
 		__shared__ index_t has_visited[64][CUDA_Stack_size];
 		__shared__ index_t has_visited_nb[64];
+		
 		bool has_visited_flag = false;
 		index_t facetidx_in_block = (index_t)threadIdx.x / k_f;
 		int cur = pid;
@@ -435,6 +423,17 @@ namespace Gpu_Rvd{
 			has_visited[facetidx_in_block][cur] = -1;
 			cur += k_f;
 		}
+		//debug
+		__shared__ index_t valid_visited_nb[64];
+		valid_visited_nb[facetidx_in_block] = 0;
+		__shared__ index_t valid_visited[64][CUDA_Stack_size];
+		cur = pid;
+		while (cur < CUDA_Stack_size){
+			valid_visited[facetidx_in_block][cur] = -1;
+			cur += k_f;
+		}
+		bool valid_visit_flag = false;
+		//end debug
 		has_visited_nb[facetidx_in_block] = 0;
 		//load \memory[facets_nn] 1 time.
 		to_visit[to_visit_pos++] = facets_nn[pid + tid * k_f];
@@ -457,7 +456,8 @@ namespace Gpu_Rvd{
 				points_nn,
 				k_p
 				); if (current_polygon.vertex_nb < 3 /*|| current_polygon.vertex_nb > 6*/) break;
-			if (tid == facets_nb - 1 && counter == 3){
+			atomicAdd(&valid_visited_nb[facetidx_in_block], 1);
+			//if (tid == facets_nb - 1 && counter == 3){
 				/*int idx = 0;
 				double* ret = retdata + pid * 32;
 				ret[0] = has_visited_nb[facetidx_in_block];
@@ -469,24 +469,53 @@ namespace Gpu_Rvd{
 					ret[16 + t] = current_polygon.vertex[t].neigh_s;
 				}*/
 				//return;
-			}
+			//}
 			
 			//now we get the clipped polygon stored in "polygon", do something.
-			action(
+			/*action(
 				current_polygon,
 				current_seed,
 				retdata
-				);
+				);*/
+			
 			//MyAtomicAdd(&retdata[0], 1);
 			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 
+			//debug
+			/*if (counter == 0){
+				clock_t start_clock = clock();
+				clock_t clock_offset = 0;
+				clock_t clock_count = 1000 * pid;
+				while (clock_offset < clock_count){
+					clock_offset = clock() - start_clock;
+				}
+			}*/
+			if (tid == 3092 && pid == 0){
+				clock_t start_clock = clock64();
+				clock_t clock_offset = 0;
+				clock_t clock_count = 5;
+				while (clock_offset < 0){
+					//clock_offset = clock64() - start_clock;
+					clock_offset++;
+				}
+				for (index_t t = 0; t < 20; t++){
+					retdata[0] = has_visited_nb[facetidx_in_block];
+					retdata[1 + t] = has_visited[facetidx_in_block][t];
+				}
+				for (index_t t = 0; t < current_polygon.vertex_nb; t++){
+					retdata[24 + t] = current_polygon.vertex[t].neigh_s;
+					
+				}
+				//return;
+			}
+			//end debug
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
 			{
 				CudaVertex ve = current_polygon.vertex[v];
 				int ns = ve.neigh_s;
 				
-				if (ns != -1)
+				if (ns != -1 && ns >= 0 && ns < points_nb)
 				{
 					for (index_t ii = 0; ii < has_visited_nb[facetidx_in_block]; ++ii)
 					{
@@ -498,14 +527,6 @@ namespace Gpu_Rvd{
 					//the neighbor seed is new!
 					if (!has_visited_flag)
 					{
-						//debug
-						/*retdata[pid * 8] = ns;
-						retdata[pid * 8 + 1] = has_visited_nb[facetidx_in_block];
-						for (index_t ii = 0; ii < has_visited_nb[facetidx_in_block]; ++ii){
-							retdata[pid * 8 + 2 + ii] = has_visited[facetidx_in_block][ii];
-						}
-						return;*/
-						//end debug
 						to_visit[to_visit_pos++] = ns;
 						//has_visited[has_visited_nb++] = ns;
 						atomicAdd(&has_visited_nb[facetidx_in_block], 1);
@@ -521,8 +542,40 @@ namespace Gpu_Rvd{
 			}
 			current_polygon = current_store;
 			counter++;
+			//debug
 			
+			if (tid == 3092 && pid == 0){
+				retdata[8] = to_visit_pos;
+				return;
+			}
+			//end debug
 		}
+		//__syncthreads();
+		if (tid == 3092){
+			for (index_t t = 0; t < 20; t++){
+				//retdata[1 + t] = valid_visited[facetidx_in_block][t];
+			}
+			//retdata[0] = valid_visited_nb[facetidx_in_block];
+		}
+		//if (tid == 3094){
+		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
+		//		retdata[20 + t] = has_visited[facetidx_in_block][t];
+		//	}*/
+		//	retdata[1] = valid_visited_nb[facetidx_in_block];
+		//}
+		//if (tid == 3192){
+		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
+		//		retdata[40 + t] = has_visited[facetidx_in_block][t];
+		//	}*/
+		//	retdata[2] = valid_visited_nb[facetidx_in_block];
+		//}
+		//if (tid == 3194){
+		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
+		//		retdata[60 + t] = has_visited[facetidx_in_block][t];
+		//	}*/
+		//	retdata[3] = valid_visited_nb[facetidx_in_block];
+		//}
+		//retdata[tid] = valid_visited_nb[facetidx_in_block];
 		/*if (tid * k_f + pid < points_nb * 4){
 			retdata[tid * k_f + pid] = counter;
 		}*/
@@ -542,7 +595,7 @@ namespace Gpu_Rvd{
 		knn_->search(points_nn_);*/
 
 		//result_print("points_nn.txt", points_nn_, k_ * points_nb_, k_);
-		//result_print("facets_nn.txt", facets_nn_, fk_ * facet_nb_, fk_);
+		result_print("facets_nn.txt", facets_nn_, fk_ * facet_nb_, fk_);
 	}
 
 	void CudaRestrictedVoronoiDiagram::update_neighbors(){
@@ -568,10 +621,10 @@ namespace Gpu_Rvd{
 		//	facets_nn_[t] = NN_->get_nearest_neighbor(fp);
 		//}
 
-
-
-		std::cout << "//////////  Bnn  Time /////////////: " << (double)(clock() - t2) << std::endl;
-		
+		std::cout << "----- NN TIME : " 
+			<< (double)(clock() - t2)
+			<< "ms -----"
+			<<std::endl;
 	}
 
 	void CudaRestrictedVoronoiDiagram::store_neighbors_CB(index_t v){
@@ -671,9 +724,24 @@ namespace Gpu_Rvd{
 				CheckCUDAError("kernel function");
 				
 				copy_back();
+				//debug
 				//int c   = host_ret_[0];
-				//result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
-				is_store_ = false;
+				//std::ifstream in("C:\\Users\\JWhan\\Desktop\\DATA\\visited_nb.txt");
+				//int* temp = (int*)malloc(sizeof(int) * facet_nb_);
+				//for (index_t t = 0; t < facet_nb_; ++t){
+				//	in >> temp[t];
+				//	//std::cout << temp[t];
+				//	if ((index_t)host_ret_[t] != (index_t)temp[t]){
+				//		std::cout << "Mismatch in facet " << t << " !"
+				//			<< "my number = " << host_ret_[t]
+				//			<< "  correct number = "
+				//			<< temp[t] << std::endl;
+				//	}
+				//}
+				
+				//end debug
+				result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
+				//is_store_ = false;
 				update_points();
 				iter_watcher.stop();
 				iter_watcher.synchronize();
