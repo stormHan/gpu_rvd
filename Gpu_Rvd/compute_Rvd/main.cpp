@@ -49,11 +49,11 @@ int main(int argc, char** argv){
 	//points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\out.eobj";
 	points_filename = "D:\\Project\\Models\\eight.obj";
 
-	if (!points_load_obj(points_filename, Points_in)){
+	/*if (!points_load_obj(points_filename, Points_in)){
 		fprintf(stderr, "cannot load the points from the %s path", points_filename);
 		return 1;
-	}
-	//.init_samples(Points_in, 30000);
+	}*/
+	M_in.init_samples(Points_in, 30000);
 	
 	/*if (!points_save(output_filename, Points_in)){
 		std::cerr << "cannot save the points data" << std::endl;
