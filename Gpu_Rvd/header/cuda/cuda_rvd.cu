@@ -424,7 +424,7 @@ namespace Gpu_Rvd{
 			cur += k_f;
 		}
 		//debug
-		__shared__ index_t valid_visited_nb[64];
+		/*__shared__ index_t valid_visited_nb[64];
 		valid_visited_nb[facetidx_in_block] = 0;
 		__shared__ index_t valid_visited[64][CUDA_Stack_size];
 		cur = pid;
@@ -432,7 +432,7 @@ namespace Gpu_Rvd{
 			valid_visited[facetidx_in_block][cur] = -1;
 			cur += k_f;
 		}
-		bool valid_visit_flag = false;
+		bool valid_visit_flag = false;*/
 		//end debug
 		has_visited_nb[facetidx_in_block] = 0;
 		//load \memory[facets_nn] 1 time.
@@ -441,7 +441,7 @@ namespace Gpu_Rvd{
 		atomicAdd(&has_visited_nb[facetidx_in_block], 1);
 		has_visited[facetidx_in_block][pid] = to_visit[0];
 		__syncthreads();
-
+		//----------------Time Consuming 1 ms----------------
 		//has_visited[facetidx_in_block][has_visited_nb[facetidx_in_block]++] = to_visit[0];
 		index_t counter = 0;
 		while (to_visit_pos){
@@ -455,8 +455,10 @@ namespace Gpu_Rvd{
 				points_nb,
 				points_nn,
 				k_p
-				); if (current_polygon.vertex_nb < 3 /*|| current_polygon.vertex_nb > 6*/) break;
-			atomicAdd(&valid_visited_nb[facetidx_in_block], 1);
+				);
+			
+			if (current_polygon.vertex_nb < 3 /*|| current_polygon.vertex_nb > 6*/) break;
+			//atomicAdd(&valid_visited_nb[facetidx_in_block], 1);
 			//if (tid == facets_nb - 1 && counter == 3){
 				/*int idx = 0;
 				double* ret = retdata + pid * 32;
@@ -470,13 +472,13 @@ namespace Gpu_Rvd{
 				}*/
 				//return;
 			//}
-			
+			return;
 			//now we get the clipped polygon stored in "polygon", do something.
-			/*action(
+			action(
 				current_polygon,
 				current_seed,
 				retdata
-				);*/
+				);
 			
 			//MyAtomicAdd(&retdata[0], 1);
 			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
@@ -490,12 +492,12 @@ namespace Gpu_Rvd{
 					clock_offset = clock() - start_clock;
 				}
 			}*/
-			if (tid == 3092 && pid == 0){
+			/*if (tid == 3092 && pid == 0){
 				clock_t start_clock = clock64();
 				clock_t clock_offset = 0;
 				clock_t clock_count = 5;
 				while (clock_offset < 0){
-					//clock_offset = clock64() - start_clock;
+					clock_offset = clock64() - start_clock;
 					clock_offset++;
 				}
 				for (index_t t = 0; t < 20; t++){
@@ -506,8 +508,8 @@ namespace Gpu_Rvd{
 					retdata[24 + t] = current_polygon.vertex[t].neigh_s;
 					
 				}
-				//return;
-			}
+				return;
+			}*/
 			//end debug
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
@@ -541,44 +543,15 @@ namespace Gpu_Rvd{
 				}
 			}
 			current_polygon = current_store;
+			/*current_polygon.vertex_nb = 3;
+
+			current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
+			current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
+			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;*/
 			counter++;
-			//debug
 			
-			if (tid == 3092 && pid == 0){
-				retdata[8] = to_visit_pos;
-				return;
-			}
-			//end debug
 		}
 		//__syncthreads();
-		if (tid == 3092){
-			for (index_t t = 0; t < 20; t++){
-				//retdata[1 + t] = valid_visited[facetidx_in_block][t];
-			}
-			//retdata[0] = valid_visited_nb[facetidx_in_block];
-		}
-		//if (tid == 3094){
-		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
-		//		retdata[20 + t] = has_visited[facetidx_in_block][t];
-		//	}*/
-		//	retdata[1] = valid_visited_nb[facetidx_in_block];
-		//}
-		//if (tid == 3192){
-		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
-		//		retdata[40 + t] = has_visited[facetidx_in_block][t];
-		//	}*/
-		//	retdata[2] = valid_visited_nb[facetidx_in_block];
-		//}
-		//if (tid == 3194){
-		//	/*for (index_t t = 0; t < has_visited_nb[facetidx_in_block]; t++){
-		//		retdata[60 + t] = has_visited[facetidx_in_block][t];
-		//	}*/
-		//	retdata[3] = valid_visited_nb[facetidx_in_block];
-		//}
-		//retdata[tid] = valid_visited_nb[facetidx_in_block];
-		/*if (tid * k_f + pid < points_nb * 4){
-			retdata[tid * k_f + pid] = counter;
-		}*/
 	}
 
 	void CudaRestrictedVoronoiDiagram::knn_search(){
@@ -595,7 +568,7 @@ namespace Gpu_Rvd{
 		knn_->search(points_nn_);*/
 
 		//result_print("points_nn.txt", points_nn_, k_ * points_nb_, k_);
-		result_print("facets_nn.txt", facets_nn_, fk_ * facet_nb_, fk_);
+		//result_print("facets_nn.txt", facets_nn_, fk_ * facet_nb_, fk_);
 	}
 
 	void CudaRestrictedVoronoiDiagram::update_neighbors(){
@@ -621,10 +594,10 @@ namespace Gpu_Rvd{
 		//	facets_nn_[t] = NN_->get_nearest_neighbor(fp);
 		//}
 
-		std::cout << "----- NN TIME : " 
+		/*std::cout << "----- NN TIME : " 
 			<< (double)(clock() - t2)
 			<< "ms -----"
-			<<std::endl;
+			<<std::endl;*/
 	}
 
 	void CudaRestrictedVoronoiDiagram::store_neighbors_CB(index_t v){
@@ -713,7 +686,7 @@ namespace Gpu_Rvd{
 				//dim3 threads(fk_, 1, 1);
 				int threads = 256;
 				int blocks = (fk_ * facet_nb_) / threads + (((fk_ * facet_nb_) % threads) ? 1 : 0);
-				kernel << < blocks, threads >> > (
+				kernel << < blocks / 16, threads >> > (
 					dev_vertex_, vertex_nb_,
 					dev_points_, points_nb_,
 					dev_facets_, facet_nb_,
@@ -740,19 +713,20 @@ namespace Gpu_Rvd{
 				//}
 				
 				//end debug
-				result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
-				//is_store_ = false;
-				update_points();
+				//result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
+				is_store_ = false;
+				//update_points();
 				iter_watcher.stop();
 				iter_watcher.synchronize();
 				iter_watcher.print_elaspsed_time(std::cout);
 			}
 		}
-		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".eobj";
-		points_save(name, *x_);
+		
 		watcher.stop();
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
+		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".eobj";
+		points_save(name, *x_);
 		free_memory();
 	}
 
