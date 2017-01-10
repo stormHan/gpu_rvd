@@ -172,9 +172,9 @@ namespace Gpu_Rvd{
 		void clip_by_plane(
 		CudaPolygon& ping,
 		CudaPolygon& pong,
-		double3 position_i,
-		double3 position_j,
-		index_t j
+		const double3& position_i,
+		const double3& position_j,
+		const index_t& j
 		){
 
 		//reset the pong
@@ -279,9 +279,9 @@ namespace Gpu_Rvd{
 	 */
 	__device__
 	void swap_polygon(CudaPolygon& ping, CudaPolygon& pong){
-		CudaPolygon t = ping;
+		
 		ping = pong;
-		pong = t;
+		pong.vertex_nb = 0;
 	}
 
 
@@ -291,11 +291,11 @@ namespace Gpu_Rvd{
 	__device__
 	void intersection_clip_facet_SR(
 		CudaPolygon& current_polygon,
-		index_t i,
+		const index_t& i,
 		const double* points,
-		index_t points_nb,
+		const index_t& points_nb,
 		index_t* points_nn,
-		index_t k
+		const index_t& k
 	){
 		CudaPolygon polygon_buffer;
 		
@@ -362,8 +362,8 @@ namespace Gpu_Rvd{
 		index_t t = blockIdx.x * blockDim.x + threadIdx.x;
 		if (t >= facets_nb * k_f) return;
 		
-		index_t tid = index_t(t / k_f);
-		index_t pid = t % k_f;
+		const index_t tid = index_t(t / k_f);
+		const index_t pid = t % k_f;
 
 	/*	int cur = tid;
 		while (cur < points_nb * 4){
@@ -376,24 +376,24 @@ namespace Gpu_Rvd{
 		//if (tid >= facets_nb) return;
 
 		//load \memory[facet] 3 times.
-		int3 facet_index = {
+		const int3 facet_index = {
 			facets[tid * dim + 0],
 			facets[tid * dim + 1],
 			facets[tid * dim + 2]
 		};
 
 		//load \memory[vertex] 9 times.
-		double3 v1 = {
+		const double3 v1 = {
 			vertex[facet_index.x * dim + 0],
 			vertex[facet_index.x * dim + 1],
 			vertex[facet_index.x * dim + 2]
 		};
-		double3 v2 = {
+		const double3 v2 = {
 			vertex[facet_index.y * dim + 0],
 			vertex[facet_index.y * dim + 1],
 			vertex[facet_index.y * dim + 2]
 		};
-		double3 v3 = {
+		const double3 v3 = {
 			vertex[facet_index.z * dim + 0],
 			vertex[facet_index.z * dim + 1],
 			vertex[facet_index.z * dim + 2]
@@ -408,7 +408,7 @@ namespace Gpu_Rvd{
 
 		
 		
-		CudaPolygon current_store = current_polygon;
+		//CudaPolygon current_store = current_polygon;
 		//doesn't have the stack?
 		index_t to_visit[CUDA_Stack_size];
 		index_t to_visit_pos = 0;
@@ -423,17 +423,7 @@ namespace Gpu_Rvd{
 			has_visited[facetidx_in_block][cur] = -1;
 			cur += k_f;
 		}
-		//debug
-		/*__shared__ index_t valid_visited_nb[64];
-		valid_visited_nb[facetidx_in_block] = 0;
-		__shared__ index_t valid_visited[64][CUDA_Stack_size];
-		cur = pid;
-		while (cur < CUDA_Stack_size){
-			valid_visited[facetidx_in_block][cur] = -1;
-			cur += k_f;
-		}
-		bool valid_visit_flag = false;*/
-		//end debug
+		
 		has_visited_nb[facetidx_in_block] = 0;
 		//load \memory[facets_nn] 1 time.
 		to_visit[to_visit_pos++] = facets_nn[pid + tid * k_f];
@@ -443,9 +433,11 @@ namespace Gpu_Rvd{
 		__syncthreads();
 		//----------------Time Consuming 1 ms----------------
 		//has_visited[facetidx_in_block][has_visited_nb[facetidx_in_block]++] = to_visit[0];
-		index_t counter = 0;
+		//index_t counter = 0;
+		index_t current_seed;
+		int ns;
 		while (to_visit_pos){
-			index_t current_seed = to_visit[to_visit_pos - 1];
+			current_seed = to_visit[to_visit_pos - 1];
 			to_visit_pos--;
 			
 			intersection_clip_facet_SR(
@@ -472,7 +464,7 @@ namespace Gpu_Rvd{
 				}*/
 				//return;
 			//}
-			return;
+			//return;
 			//now we get the clipped polygon stored in "polygon", do something.
 			action(
 				current_polygon,
@@ -483,39 +475,11 @@ namespace Gpu_Rvd{
 			//MyAtomicAdd(&retdata[0], 1);
 			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 
-			//debug
-			/*if (counter == 0){
-				clock_t start_clock = clock();
-				clock_t clock_offset = 0;
-				clock_t clock_count = 1000 * pid;
-				while (clock_offset < clock_count){
-					clock_offset = clock() - start_clock;
-				}
-			}*/
-			/*if (tid == 3092 && pid == 0){
-				clock_t start_clock = clock64();
-				clock_t clock_offset = 0;
-				clock_t clock_count = 5;
-				while (clock_offset < 0){
-					clock_offset = clock64() - start_clock;
-					clock_offset++;
-				}
-				for (index_t t = 0; t < 20; t++){
-					retdata[0] = has_visited_nb[facetidx_in_block];
-					retdata[1 + t] = has_visited[facetidx_in_block][t];
-				}
-				for (index_t t = 0; t < current_polygon.vertex_nb; t++){
-					retdata[24 + t] = current_polygon.vertex[t].neigh_s;
-					
-				}
-				return;
-			}*/
-			//end debug
+			
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
 			{
-				CudaVertex ve = current_polygon.vertex[v];
-				int ns = ve.neigh_s;
+				ns = current_polygon.vertex[v].neigh_s;
 				
 				if (ns != -1 && ns >= 0 && ns < points_nb)
 				{
@@ -542,13 +506,13 @@ namespace Gpu_Rvd{
 					has_visited_flag = false;
 				}
 			}
-			current_polygon = current_store;
-			/*current_polygon.vertex_nb = 3;
+			//current_polygon = current_store;
+			current_polygon.vertex_nb = 3;
 
 			current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
 			current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
-			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;*/
-			counter++;
+			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
+			//counter++;
 			
 		}
 		//__syncthreads();
@@ -651,15 +615,7 @@ namespace Gpu_Rvd{
 			points_save(name, *x_);
 			store_filename_counter_++;
 		}
-		//debug
-		/*std::string name;
-		if (store_filename_counter_ != 10)
-			name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".eobj";
-		else
-			name = "C:\\Users\\JWhan\\Desktop\\DATA\\out.eobj";
-		points_load_obj(name, *x_);
-		store_filename_counter_++*/;
-		//end debug
+		
 
 	}
 
@@ -684,9 +640,9 @@ namespace Gpu_Rvd{
 				//int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
 				//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
 				//dim3 threads(fk_, 1, 1);
-				int threads = 256;
+				int threads = 128;
 				int blocks = (fk_ * facet_nb_) / threads + (((fk_ * facet_nb_) % threads) ? 1 : 0);
-				kernel << < blocks / 16, threads >> > (
+				kernel << < blocks , threads >> > (
 					dev_vertex_, vertex_nb_,
 					dev_points_, points_nb_,
 					dev_facets_, facet_nb_,
@@ -697,25 +653,9 @@ namespace Gpu_Rvd{
 				CheckCUDAError("kernel function");
 				
 				copy_back();
-				//debug
-				//int c   = host_ret_[0];
-				//std::ifstream in("C:\\Users\\JWhan\\Desktop\\DATA\\visited_nb.txt");
-				//int* temp = (int*)malloc(sizeof(int) * facet_nb_);
-				//for (index_t t = 0; t < facet_nb_; ++t){
-				//	in >> temp[t];
-				//	//std::cout << temp[t];
-				//	if ((index_t)host_ret_[t] != (index_t)temp[t]){
-				//		std::cout << "Mismatch in facet " << t << " !"
-				//			<< "my number = " << host_ret_[t]
-				//			<< "  correct number = "
-				//			<< temp[t] << std::endl;
-				//	}
-				//}
 				
-				//end debug
-				//result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
 				is_store_ = false;
-				//update_points();
+				update_points();
 				iter_watcher.stop();
 				iter_watcher.synchronize();
 				iter_watcher.print_elaspsed_time(std::cout);
