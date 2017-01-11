@@ -410,11 +410,12 @@ namespace Gpu_Rvd{
 		
 		//CudaPolygon current_store = current_polygon;
 		//doesn't have the stack?
-		index_t to_visit[CUDA_Stack_size];
+		short idx = threadIdx.x;
+		__shared__ index_t to_visit[128][CUDA_Stack_size];
 		index_t to_visit_pos = 0;
 
-		__shared__ index_t has_visited[64][CUDA_Stack_size];
-		__shared__ index_t has_visited_nb[64];
+		__shared__ index_t has_visited[33][CUDA_Stack_size];
+		__shared__ index_t has_visited_nb[33];
 		
 		bool has_visited_flag = false;
 		index_t facetidx_in_block = (index_t)threadIdx.x / k_f;
@@ -426,10 +427,10 @@ namespace Gpu_Rvd{
 		
 		has_visited_nb[facetidx_in_block] = 0;
 		//load \memory[facets_nn] 1 time.
-		to_visit[to_visit_pos++] = facets_nn[pid + tid * k_f];
+		to_visit[idx][to_visit_pos++] = facets_nn[pid + tid * k_f];
 		//has_visited[has_visited_nb++] = to_visit[0];
 		atomicAdd(&has_visited_nb[facetidx_in_block], 1);
-		has_visited[facetidx_in_block][pid] = to_visit[0];
+		has_visited[facetidx_in_block][pid] = to_visit[idx][0];
 		__syncthreads();
 		//----------------Time Consuming 1 ms----------------
 		//has_visited[facetidx_in_block][has_visited_nb[facetidx_in_block]++] = to_visit[0];
@@ -437,7 +438,7 @@ namespace Gpu_Rvd{
 		index_t current_seed;
 		int ns;
 		while (to_visit_pos){
-			current_seed = to_visit[to_visit_pos - 1];
+			current_seed = to_visit[idx][to_visit_pos - 1];
 			to_visit_pos--;
 			
 			intersection_clip_facet_SR(
@@ -481,7 +482,7 @@ namespace Gpu_Rvd{
 			{
 				ns = current_polygon.vertex[v].neigh_s;
 				
-				if (ns != -1 && ns >= 0 && ns < points_nb)
+				if (ns >= 0 && ns < points_nb)
 				{
 					for (index_t ii = 0; ii < has_visited_nb[facetidx_in_block]; ++ii)
 					{
@@ -493,7 +494,7 @@ namespace Gpu_Rvd{
 					//the neighbor seed is new!
 					if (!has_visited_flag)
 					{
-						to_visit[to_visit_pos++] = ns;
+						to_visit[idx][to_visit_pos++] = ns;
 						//has_visited[has_visited_nb++] = ns;
 						atomicAdd(&has_visited_nb[facetidx_in_block], 1);
 						index_t idx = has_visited_nb[facetidx_in_block] - 1;
@@ -684,10 +685,10 @@ namespace Gpu_Rvd{
 			<< "Starting cudaMalloc..\n";
 		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
 		//host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
-		cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
-		cudaMemcpyToSymbol(g_seeds_information, &dev_seeds_info_, sizeof(double*), size_t(0), cudaMemcpyHostToDevice);
-		cudaMalloc((void**)&dev_seeds_poly_nb, INT_SIZE * points_nb_);
-		cudaMemcpyToSymbol(g_seeds_polygon_nb, &dev_seeds_poly_nb, sizeof(int*), size_t(0), cudaMemcpyHostToDevice);
+		//cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
+		//cudaMemcpyToSymbol(g_seeds_information, &dev_seeds_info_, sizeof(double*), size_t(0), cudaMemcpyHostToDevice);
+		//cudaMalloc((void**)&dev_seeds_poly_nb, INT_SIZE * points_nb_);
+		//cudaMemcpyToSymbol(g_seeds_polygon_nb, &dev_seeds_poly_nb, sizeof(int*), size_t(0), cudaMemcpyHostToDevice);
 
 		switch (mode)
 		{
