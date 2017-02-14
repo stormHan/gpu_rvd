@@ -7,7 +7,7 @@
 
 namespace Gpu_Rvd{
 
-	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k, int fk){
+	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, std::vector<int> sample_facet, int k){
 		vertex_ = m->v_ptr();
 		vertex_nb_ = m->get_vertex_nb();
 		points_ = p->v_ptr();
@@ -16,9 +16,8 @@ namespace Gpu_Rvd{
 		facet_nb_ = m->get_facet_nb();
 		
 		k_ = k;
-		fk_ = fk;
 		points_nn_ = (index_t*)malloc(sizeof(index_t) * k_ * points_nb_);
-		facets_nn_ = (index_t*)malloc(sizeof(index_t) * facet_nb_ * fk_);
+		facets_nn_ = (index_t*)malloc(sizeof(index_t) * facet_nb_);
 		dimension_ = m->dimension();
 
 		dev_vertex_ = nil;
@@ -39,16 +38,7 @@ namespace Gpu_Rvd{
 
 		is_store_ = true;
 		store_filename_counter_ = 0;
-
-		facets_center_ = (double*)malloc(sizeof(double) * dimension_ * facet_nb_);
-		index_t f1, f2, f3;
-		for (index_t t = 0; t < facet_nb_; ++t){
-			f1 = facets_[t * dimension_ + 0];
-			f2 = facets_[t * dimension_ + 1];
-			f3 = facets_[t * dimension_ + 2];
-			Math::compute_center(&vertex_[f1 * 3], &vertex_[f2 * 3], &vertex_[f3 * 3], dimension_, &facets_center_[t * dimension_]);
-		}
-		
+		sample_facet_ = sample_facet;
 	}
 
 	//CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh m, Points p, index_t k, const index_t* points_nn, const index_t* facets_nn) :
@@ -85,10 +75,6 @@ namespace Gpu_Rvd{
 			facets_nn_ = nil;
 		}
 
-		if (facets_center_ != nil){
-			free(facets_center_);
-			facets_center_ = nil;
-		}
 		//delete knn_;
 	}
 
@@ -115,19 +101,16 @@ namespace Gpu_Rvd{
 	 */
 	__device__
 		void action(
-		const CudaPolygon polygon, index_t current_seed, double* retdata
+		const CudaPolygon& polygon, const index_t& current_seed, double* retdata
 	){
-		double weight;
-		double3 position;
-
 		index_t _v1 = 0;
 		index_t _v2, _v3;
 
 		double3 pos1, pos2, pos3;
-		double d1, d2, d3;
+		//double d1, d2, d3;
 		int triangle_nb = polygon.vertex_nb - 2;
 		if (triangle_nb <= 0) return;
-		
+
 		double total_weight = 0.0;
 		double3 centriodTimesWeight = { 0.0, 0.0, 0.0 };
 
@@ -140,16 +123,16 @@ namespace Gpu_Rvd{
 			_v2 = i; _v3 = i + 1;
 
 			pos1 = { polygon.vertex[_v1].x, polygon.vertex[_v1].y, polygon.vertex[_v1].z };
-			d1 = polygon.vertex[_v1].w;
+			//d1 = polygon.vertex[_v1].w;
 
 			pos2 = { polygon.vertex[_v2].x, polygon.vertex[_v2].y, polygon.vertex[_v2].z };
-			d2 = polygon.vertex[_v2].w;
+			//d2 = polygon.vertex[_v2].w;
 
 			pos3 = { polygon.vertex[_v3].x, polygon.vertex[_v3].y, polygon.vertex[_v3].z };
-			d3 = polygon.vertex[_v3].w;
+			//d3 = polygon.vertex[_v3].w;
 
-			computeTriangleCentriod(pos1, pos2, pos3, d1, d2, d3, centriodTimesWeight, total_weight);
-			
+			computeTriangleCentriod(pos1, pos2, pos3,  centriodTimesWeight, total_weight);
+
 			current_weight += total_weight;
 			current_posTimesWeight.x += centriodTimesWeight.x;
 			current_posTimesWeight.y += centriodTimesWeight.y;
@@ -178,7 +161,7 @@ namespace Gpu_Rvd{
 		){
 
 		//reset the pong
-		pong.vertex_nb = 0;
+		//pong.vertex_nb = 0;
 
 		if (ping.vertex_nb == 0)
 			return;
@@ -187,29 +170,28 @@ namespace Gpu_Rvd{
 		// normal vector of the bisector [i, j]
 		// and m the middle point of the bisector.
 		double d = 0.0;
-		d = dot(add(position_i, position_j), sub(position_i, position_j));
-		
+		double3 temp = sub(position_i, position_j);
+		d = dot(add(position_i, position_j), temp);
+
 		//The predecessor of the first vertex is the last vertex
-		index_t prev_k = ping.vertex_nb - 1;
+		int prev_k = ping.vertex_nb - 1;
 
 		//get the position data
-		CudaVertex* prev_vk = &ping.vertex[prev_k];
-
-		double3 prev_vertex_position = { prev_vk->x, prev_vk->y, prev_vk->z };
+		
 
 		//then we compute prev_vertex_position "cross" n 
 		//prev_l = prev_vertex_position . n
-		double prev_l = dot(prev_vertex_position, sub(position_i, position_j));
+		double prev_l = ping.vertex[prev_k].x * temp.x + ping.vertex[prev_k].y * temp.y + ping.vertex[prev_k].z * temp.z;
 
 		int prev_status = sgn(2.0 * prev_l - d);
-		
+
 		//traverse the Vertex in this Polygon
-		for (index_t k = 0; k < ping.vertex_nb; ++k){
+		for (int k = 0; k < ping.vertex_nb; ++k){
 
-			CudaVertex* vk = &ping.vertex[k];
-			double3 vertex_position = { vk->x, vk->y, vk->z };
+			
 
-			double l = dot(vertex_position, sub(position_i, position_j));
+			double l = ping.vertex[k].x * temp.x + ping.vertex[k].y * temp.y + ping.vertex[k].z * temp.z;
+
 			int status = sgn(2.0 * l - d);
 
 			//If status of edge extremities differ,
@@ -239,19 +221,19 @@ namespace Gpu_Rvd{
 				}
 
 				//Set the Position of Vertex
-				I.x = lambda1 * prev_vertex_position.x + lambda2 * vertex_position.x;
-				I.y = lambda1 * prev_vertex_position.y + lambda2 * vertex_position.y;
-				I.z = lambda1 * prev_vertex_position.z + lambda2 * vertex_position.z;
+				I.x = lambda1 * ping.vertex[prev_k].x + lambda2 * ping.vertex[k].x;
+				I.y = lambda1 * ping.vertex[prev_k].y + lambda2 * ping.vertex[k].y;
+				I.z = lambda1 * ping.vertex[prev_k].z + lambda2 * ping.vertex[k].z;
 
 				//Set the Weight of Vertex
-				I.w = (lambda1 * prev_vk->w + lambda2 * vk->w);
+				I.w = (lambda1 * ping.vertex[prev_k].w + lambda2 * ping.vertex[k].w);
 
 				if (status > 0)
 				{
 					I.neigh_s = (j);
 				}
 				else {
-					I.neigh_s = (vk->neigh_s);
+					I.neigh_s = (ping.vertex[k].neigh_s);
 				}
 
 				//add I to pong
@@ -261,16 +243,109 @@ namespace Gpu_Rvd{
 			if (status > 0)
 			{
 				//add vertex to pong
-				pong.vertex[pong.vertex_nb] = *vk;
+				pong.vertex[pong.vertex_nb] = ping.vertex[k];
 				pong.vertex_nb++;
 			}
-			
-			prev_vk = vk;
-			prev_vertex_position = vertex_position;
+
 			prev_status = status;
 			prev_l = l;
 			prev_k = k;
 		}
+		//reset the pong
+		//pong.vertex_nb = 0;
+
+		//if (ping.vertex_nb == 0)
+		//	return;
+		//
+		//// Compute d = n . (2m), where n is the
+		//// normal vector of the bisector [i, j]
+		//// and m the middle point of the bisector.
+		//double d = 0.0;
+		//double3 temp = sub(position_i, position_j);
+		//d = dot(add(position_i, position_j), temp);
+
+		////The predecessor of the first vertex is the last vertex
+		//int prev_k = ping.vertex_nb - 1;
+
+		////get the position data
+		////CudaVertex* prev_vk = &ping.vertex[prev_k];
+
+		////then we compute prev_vertex_position "cross" n 
+		////prev_l = prev_vertex_position . n
+		//
+		//double prev_l = ping.vertex[prev_k].x * temp.x + ping.vertex[prev_k].y * temp.y + ping.vertex[prev_k].z * temp.z;
+
+		//int prev_status = sgn(2.0 * prev_l - d);
+		//
+		////traverse the Vertex in this Polygon
+		//for (int k = 0; k < ping.vertex_nb; ++k){
+
+		//	//CudaVertex* vk = &ping.vertex[k];
+		//	
+		//	double l = ping.vertex[k].x * temp.x + ping.vertex[k].y * temp.y + ping.vertex[k].z + temp.z;
+		//	
+		//	int status = sgn(2.0 * l - d);
+
+		//	//If status of edge extremities differ,
+		//	//then there is an intersection.
+		//	if (status != prev_status && (prev_status) != 0){
+		//		// create the intersection and update the Polyon
+		//		CudaVertex I;
+
+		//		//compute the position and weight
+		//		double denom = 2.0 * (prev_l - l);
+		//		double lambda1, lambda2;
+
+		//		// Shit happens!
+		//		if (m_fabs(denom) < 1e-20)
+		//		{
+		//			lambda1 = 0.5;
+		//			lambda2 = 0.5;
+		//		}
+		//		else
+		//		{
+		//			lambda1 = (d - 2.0 * l) / denom;
+		//			// Note: lambda2 is also given
+		//			// by (2.0*l2-d)/denom
+		//			// (but 1.0 - lambda1 is a bit
+		//			//  faster to compute...)
+		//			lambda2 = 1.0 - lambda1;
+		//		}
+
+		//		//Set the Position of Vertex
+		//		I.x = lambda1 * ping.vertex[prev_k].x + lambda2 * ping.vertex[k].x;
+		//		I.y = lambda1 * ping.vertex[prev_k].y + lambda2 * ping.vertex[k].y;
+		//		I.z = lambda1 * ping.vertex[prev_k].z + lambda2 * ping.vertex[k].z;
+
+		//		//Set the Weight of Vertex
+		//		I.w = (lambda1 * ping.vertex[prev_k].w + lambda2 * ping.vertex[k].w);
+
+		//		if (status > 0)
+		//		{
+		//			I.neigh_s = (j);
+		//		}
+		//		else {
+		//			I.neigh_s = (ping.vertex[k].neigh_s);
+		//		}
+
+		//		//add I to pong
+		//		pong.vertex[pong.vertex_nb] = I;
+		//		pong.vertex_nb++;
+		//	}
+		//	if (status > 0)
+		//	{
+		//		//add vertex to pong
+		//		pong.vertex[pong.vertex_nb] = ping.vertex[k];
+		//		pong.vertex_nb++;
+		//	}
+
+		//	//prev_vk = vk;
+		//	//prev_vertex_position = vertex_position;
+		//	prev_status = status;
+		//	prev_l = l;
+		//	prev_k = k;
+		//}
+		
 	}
 
 	/*
@@ -279,8 +354,12 @@ namespace Gpu_Rvd{
 	 */
 	__device__
 	void swap_polygon(CudaPolygon& ping, CudaPolygon& pong){
+		//CudaPolygon t = ping;
+		for (int i = 0; i < pong.vertex_nb; ++i){
+			ping.vertex[i] = pong.vertex[i];
+		}
+		ping.vertex_nb = pong.vertex_nb;
 		
-		ping = pong;
 		pong.vertex_nb = 0;
 	}
 
@@ -298,7 +377,7 @@ namespace Gpu_Rvd{
 		const index_t& k
 	){
 		CudaPolygon polygon_buffer;
-		
+		polygon_buffer.vertex_nb = 0;
 		//load /memory[points] 3 times.
 		double3 pi = {
 			points[i * 3 + 0],
@@ -306,12 +385,11 @@ namespace Gpu_Rvd{
 			points[i * 3 + 2]
 		};
 		
-		for (index_t t = 0; t < k; ++t){
+		for (index_t t = 1; t < 20; ++t){
 
 			//load /memory[points_nn] k times.
 			index_t j = points_nn[i * k + t];
 
-			if (i != j){
 				//load /memroy[points] k * 3 times.
 				double3 pj = {
 					points[j * 3 + 0],
@@ -330,10 +408,18 @@ namespace Gpu_Rvd{
 				if (dij > 4.1 * R2){
 					return;
 				}
-					
-				clip_by_plane(current_polygon, polygon_buffer, pi, pj, j);
-				swap_polygon(current_polygon, polygon_buffer);
-			}
+				
+				clip_by_plane(current_polygon, polygon_buffer, pi, pj, j); 
+				//swap_polygon(current_polygon, polygon_buffer);
+				
+				for (int i = 0; i < polygon_buffer.vertex_nb; ++i){
+					current_polygon.vertex[i] = polygon_buffer.vertex[i];
+				}
+				current_polygon.vertex_nb = polygon_buffer.vertex_nb;
+				
+				polygon_buffer.vertex_nb = 0;
+				
+			
 		}
 	}
 	
@@ -356,24 +442,12 @@ namespace Gpu_Rvd{
 		double*			points, index_t			points_nb,
 		index_t*		facets, index_t			facets_nb,
 		index_t*		points_nn, index_t			k_p,
-		index_t*		facets_nn, index_t			k_f,
-		index_t			dim, double*			retdata
+		index_t*		facets_nn, index_t			dim,
+		double*			retdata
 		){
-		index_t t = blockIdx.x * blockDim.x + threadIdx.x;
-		if (t >= facets_nb * k_f) return;
-		
-		const index_t tid = index_t(t / k_f);
-		const index_t pid = t % k_f;
+		index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-	/*	int cur = tid;
-		while (cur < points_nb * 4){
-			g_seeds_information[cur] = 0;
-			if (cur < points_nb){
-				g_seeds_polygon_nb[cur] = 0;
-			}
-			cur += facets_nb;
-		}*/
-		//if (tid >= facets_nb) return;
+		if (tid >= facets_nb) return;
 
 		//load \memory[facet] 3 times.
 		const int3 facet_index = {
@@ -382,6 +456,7 @@ namespace Gpu_Rvd{
 			facets[tid * dim + 2]
 		};
 
+		
 		//load \memory[vertex] 9 times.
 		const double3 v1 = {
 			vertex[facet_index.x * dim + 0],
@@ -398,7 +473,7 @@ namespace Gpu_Rvd{
 			vertex[facet_index.z * dim + 1],
 			vertex[facet_index.z * dim + 2]
 		};
-
+		//debug
 		CudaPolygon current_polygon;
 		current_polygon.vertex_nb = 3;
 
@@ -406,39 +481,26 @@ namespace Gpu_Rvd{
 		current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
 		current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
 
-		
-		
+
 		//CudaPolygon current_store = current_polygon;
 		//doesn't have the stack?
-		short idx = threadIdx.x;
+		const short idx = threadIdx.x;
+
 		__shared__ index_t to_visit[128][CUDA_Stack_size];
 		index_t to_visit_pos = 0;
 
-		__shared__ index_t has_visited[33][CUDA_Stack_size];
-		__shared__ index_t has_visited_nb[33];
-		
+		index_t has_visited[CUDA_Stack_size];
+		index_t has_visited_nb = 0;
 		bool has_visited_flag = false;
-		index_t facetidx_in_block = (index_t)threadIdx.x / k_f;
-		int cur = pid;
-		while (cur < CUDA_Stack_size){
-			has_visited[facetidx_in_block][cur] = -1;
-			cur += k_f;
-		}
-		
-		has_visited_nb[facetidx_in_block] = 0;
+
 		//load \memory[facets_nn] 1 time.
-		to_visit[idx][to_visit_pos++] = facets_nn[pid + tid * k_f];
-		//has_visited[has_visited_nb++] = to_visit[0];
-		atomicAdd(&has_visited_nb[facetidx_in_block], 1);
-		has_visited[facetidx_in_block][pid] = to_visit[idx][0];
-		__syncthreads();
-		//----------------Time Consuming 1 ms----------------
-		//has_visited[facetidx_in_block][has_visited_nb[facetidx_in_block]++] = to_visit[0];
+		to_visit[idx][to_visit_pos++] = facets_nn[tid];
+		has_visited[has_visited_nb++] = to_visit[idx][0];
+		
+		
 		//index_t counter = 0;
-		index_t current_seed;
-		int ns;
 		while (to_visit_pos){
-			current_seed = to_visit[idx][to_visit_pos - 1];
+			index_t current_seed = to_visit[idx][to_visit_pos - 1];
 			to_visit_pos--;
 			
 			intersection_clip_facet_SR(
@@ -449,23 +511,7 @@ namespace Gpu_Rvd{
 				points_nn,
 				k_p
 				);
-			
-			if (current_polygon.vertex_nb < 3 /*|| current_polygon.vertex_nb > 6*/) break;
-			//atomicAdd(&valid_visited_nb[facetidx_in_block], 1);
-			//if (tid == facets_nb - 1 && counter == 3){
-				/*int idx = 0;
-				double* ret = retdata + pid * 32;
-				ret[0] = has_visited_nb[facetidx_in_block];
-				for (int i = 0; t < has_visited_nb[facetidx_in_block]; ++i){
-					ret[i + 1] = has_visited[facetidx_in_block][i];
-				}
-				
-				for (index_t t = 0; t < ret[0]; ++t){
-					ret[16 + t] = current_polygon.vertex[t].neigh_s;
-				}*/
-				//return;
-			//}
-			//return;
+
 			//now we get the clipped polygon stored in "polygon", do something.
 			action(
 				current_polygon,
@@ -473,36 +519,26 @@ namespace Gpu_Rvd{
 				retdata
 				);
 			
-			//MyAtomicAdd(&retdata[0], 1);
-			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
-
 			
+			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
 			{
-				ns = current_polygon.vertex[v].neigh_s;
-				
-				if (ns >= 0 && ns < points_nb)
+				int ns = current_polygon.vertex[v].neigh_s;
+				if (ns != -1)
 				{
-					for (index_t ii = 0; ii < has_visited_nb[facetidx_in_block]; ++ii)
+					for (index_t ii = 0; ii < has_visited_nb; ++ii)
 					{
 						//if the neighbor seed has clipped the polygon
 						//the flag should be set "true"
-						if (has_visited[facetidx_in_block][ii] == ns)
+						if (has_visited[ii] == ns)
 							has_visited_flag = true;
 					}
 					//the neighbor seed is new!
 					if (!has_visited_flag)
 					{
 						to_visit[idx][to_visit_pos++] = ns;
-						//has_visited[has_visited_nb++] = ns;
-						atomicAdd(&has_visited_nb[facetidx_in_block], 1);
-						index_t idx = has_visited_nb[facetidx_in_block] - 1;
-						/*while (has_visited[facetidx_in_block][idx] != -1){
-							idx++;
-						}
-						has_visited[facetidx_in_block][idx] = ns;*/
-						has_visited[facetidx_in_block][idx] = ns;
+						has_visited[has_visited_nb++] = ns;
 					}
 					has_visited_flag = false;
 				}
@@ -514,55 +550,106 @@ namespace Gpu_Rvd{
 			current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
 			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
 			//counter++;
-			
 		}
+		// end debug
+		/*
+		CudaPolygon current_polygon;
+		current_polygon.vertex_nb = 3;
+
+		current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
+		current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
+		current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
+
+		//CudaPolygon current_store = current_polygon;
+		//doesn't have the stack?
+		index_t to_visit[CUDA_Stack_size];
+		index_t to_visit_pos = 0;
+
+		index_t has_visited[CUDA_Stack_size];
+		index_t has_visited_nb = 0;
+		bool has_visited_flag = false;
+
+		//load \memory[facets_nn] 1 time.
+		to_visit[to_visit_pos++] = facets_nn[tid];
+		has_visited[has_visited_nb++] = to_visit[0];
+
+		//index_t counter = 0;
+		while (to_visit_pos){
+			index_t current_seed = to_visit[to_visit_pos - 1];
+			to_visit_pos--;
+			
+			intersection_clip_facet_SR(
+				current_polygon,
+				current_seed,
+				points,
+				points_nb,
+				points_nn,
+				k_p
+				);
+
+			//now we get the clipped polygon stored in "polygon", do something.
+			action(
+				current_polygon,
+				current_seed,
+				retdata
+				);
+			
+			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
+			//Propagate to adjacent seeds
+			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
+			{
+				int ns = current_polygon.vertex[v].neigh_s;
+				if (ns != -1)
+				{
+					for (index_t ii = 0; ii < has_visited_nb; ++ii)
+					{
+						//if the neighbor seed has clipped the polygon
+						//the flag should be set "true"
+						if (has_visited[ii] == ns)
+							has_visited_flag = true;
+					}
+					//the neighbor seed is new!
+					if (!has_visited_flag)
+					{
+						to_visit[to_visit_pos++] = ns;
+						has_visited[has_visited_nb++] = ns;
+					}
+					has_visited_flag = false;
+				}
+			}
+			//current_polygon = current_store;
+			current_polygon.vertex_nb = 3;
+
+			current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
+			current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
+			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
+			//counter++;
+			*/
+		//}
 		//__syncthreads();
+		//retdata[tid] = has_visited_nb;
+		
 	}
 
 	void CudaRestrictedVoronoiDiagram::knn_search(){
 		NN_->set_points(points_nb_, points_);
 		update_neighbors();
 
-
-		/*knn_->set_reference(*x_);
-		knn_->set_k(1);
-		knn_->set_query(*mesh_);
-		knn_->search(facets_nn_);
-		knn_->set_k(20);
-		knn_->set_query(*x_);
-		knn_->search(points_nn_);*/
-
 		//result_print("points_nn.txt", points_nn_, k_ * points_nb_, k_);
-		//result_print("facets_nn.txt", facets_nn_, fk_ * facet_nb_, fk_);
+		//result_print("facets_nn.txt", facets_nn_, facet_nb_, 1);
 	}
 
 	void CudaRestrictedVoronoiDiagram::update_neighbors(){
-		long t2 = clock();
+		//long t2 = clock();
 		parallel_for(
 			parallel_for_member_callback(this, &CudaRestrictedVoronoiDiagram::store_neighbors_CB),
 			0, points_nb_, 1, true
 			);
 
-
 		parallel_for(
 			parallel_for_member_callback(this, &CudaRestrictedVoronoiDiagram::store_f_neighrbors_CB),
 			0, facet_nb_, 1, true
 			);
-		//double* fp = (double*)malloc(sizeof(double) * dimension_);
-		//index_t f1, f2, f3;
-		//for (index_t t = 0; t < facet_nb_; ++t){
-		//	f1 = facets_[t * dimension_ + 0];
-		//	f2 = facets_[t * dimension_ + 1];
-		//	f3 = facets_[t * dimension_ + 2];
-		//	Math::compute_center(&vertex_[f1 * 3], &vertex_[f2 * 3], &vertex_[f3 * 3], dimension_, fp);
-		//	//fp = &vertex_[facets_[t * dimension_] * dimension_];
-		//	facets_nn_[t] = NN_->get_nearest_neighbor(fp);
-		//}
-
-		/*std::cout << "----- NN TIME : " 
-			<< (double)(clock() - t2)
-			<< "ms -----"
-			<<std::endl;*/
 	}
 
 	void CudaRestrictedVoronoiDiagram::store_neighbors_CB(index_t v){
@@ -583,7 +670,7 @@ namespace Gpu_Rvd{
 	}
 
 	void CudaRestrictedVoronoiDiagram::store_f_neighrbors_CB(index_t v){
-		index_t nb = geo_min(fk_, points_nb_);
+		index_t nb = 1;
 
 		// Allocated on the stack(more thread-friendly and 
 		// no need to deallocate)
@@ -593,10 +680,9 @@ namespace Gpu_Rvd{
 		double* dist = (double*)alloca(
 			sizeof(double) * nb
 			);
-		NN_->get_nearest_neighbors(nb, facets_center_ + v * dimension_, neighbors, dist);
-		for (index_t t = 0; t < fk_; ++t){
-			facets_nn_[v * fk_ + t] = neighbors[t];
-		}
+
+		NN_->get_nearest_neighbors(nb, vertex_ + dimension_* facets_[v * dimension_], neighbors, dist);
+		facets_nn_[v] = neighbors[0];
 	}
 
 	void CudaRestrictedVoronoiDiagram::update_points(){
@@ -616,8 +702,6 @@ namespace Gpu_Rvd{
 			points_save(name, *x_);
 			store_filename_counter_++;
 		}
-		
-
 	}
 
 	__host__
@@ -629,32 +713,34 @@ namespace Gpu_Rvd{
 
 		for (index_t t = 0; t < iter_nb_; ++t){
 			knn_search(); 
+			
 			{
 				CudaStopWatcher iter_watcher("iteration");
 				iter_watcher.start();				
 				cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
 				cudaMemcpy(dev_points_nn_, points_nn_, sizeof(index_t) * points_nb_ * k_, cudaMemcpyHostToDevice);
-				cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * fk_, cudaMemcpyHostToDevice);
+				cudaMemcpy(dev_facets_nn_, facets_nn_, sizeof(index_t) * facet_nb_ * 1, cudaMemcpyHostToDevice);
 				
 				//might be improved dim3 type.
-				//int threads = 256;
-				//int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
-				//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
-				//dim3 threads(fk_, 1, 1);
 				int threads = 128;
-				int blocks = (fk_ * facet_nb_) / threads + (((fk_ * facet_nb_) % threads) ? 1 : 0);
-				kernel << < blocks , threads >> > (
+				int blocks = facet_nb_ / threads + ((facet_nb_ % threads) ? 1 : 0);
+				//dim3 blocks(512, facet_nb_ / 512 + ((facet_nb_ % 512) ? 1 : 0));
+				//dim3 threads(1, 1, 1);
+				
+				kernel << < blocks, threads >> > (
 					dev_vertex_, vertex_nb_,
 					dev_points_, points_nb_,
 					dev_facets_, facet_nb_,
 					dev_points_nn_, k_,
-					dev_facets_nn_, fk_,
-					dimension_, dev_ret_
+					dev_facets_nn_, dimension_,
+					dev_ret_
 					);
 				CheckCUDAError("kernel function");
 				
 				copy_back();
 				
+				//result_print("retdata.txt", host_ret_, facet_nb_ * 400, 4);
+				//result_print("retdata.txt", host_ret_, points_nb_ * 4, 4);
 				is_store_ = false;
 				update_points();
 				iter_watcher.stop();
@@ -666,8 +752,8 @@ namespace Gpu_Rvd{
 		watcher.stop();
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
-		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".eobj";
-		points_save(name, *x_);
+		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".xyz";
+		points_save_xyz(name, *x_, sample_facet_);
 		free_memory();
 	}
 
@@ -700,7 +786,7 @@ namespace Gpu_Rvd{
 			cudaMalloc((void**)&dev_points_, DOUBLE_SIZE * points_nb_ * dimension_);
 			cudaMalloc((void**)&dev_facets_, sizeof(index_t) * facet_nb_ * dimension_);
 			cudaMalloc((void**)&dev_points_nn_, sizeof(index_t) * points_nb_ * k_);
-			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * fk_);
+			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
 
 			//Output result.
 			//cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
