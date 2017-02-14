@@ -29,7 +29,7 @@ namespace Gpu_Rvd{
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, int k = 20, int fk = 4);
+		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, std::vector<int> sample_facet, int k = 20);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
@@ -94,8 +94,8 @@ namespace Gpu_Rvd{
 		void store_neighbors_CB(index_t v);
 
 		/**
-		 * \brief multi-thread friendly function to search for facets
-		 */
+		* \brief multi-thread friendly function to search for facets
+		*/
 		void store_f_neighrbors_CB(index_t v);
 
 		/*
@@ -178,8 +178,7 @@ namespace Gpu_Rvd{
 		bool is_store_;
 		int store_filename_counter_;
 
-		index_t fk_;
-		double* facets_center_;
+		std::vector<int> sample_facet_;
 	};
 
 }
