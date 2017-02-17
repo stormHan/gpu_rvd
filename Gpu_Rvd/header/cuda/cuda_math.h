@@ -10,51 +10,49 @@
 namespace Gpu_Rvd{
 
 	__device__
-	inline double distance2(double3 p1, double3 p2){
+	inline double distance2(const double3& p1, const double3& p2){
 		return (p2.x - p1.x) * (p2.x - p1.x)
 			+ (p2.y - p1.y) * (p2.y - p1.y)
 			+ (p2.z - p1.z) * (p2.z - p1.z);
 	}
 
 	__device__
-	inline double distance(double3 p1, double3 p2){
+	inline double distance(const double3& p1, const double3& p2){
 		return sqrt(distance2(p1, p2));
 	}
 
 	__device__
-		inline double maxd(double d1, double d2)
+		inline double maxd(const double& d1, const double& d2)
 	{
 		return (d1 > d2) ? d1 : d2;
 	}
 
 	__device__
-	inline	double3 add(double3 a, double3 b)
+	inline	double3 add(const double3& a, const double3& b)
 	{
-		a.x = a.x + b.x;
-		a.y = a.y + b.y;
-		a.z = a.z + b.z;
-
-		return a;
+		double3 d = { a.x + b.x,
+			a.y + b.y,
+			a.z + b.z };
+		return d;
 	}
 
 	__device__
-	inline	double3 sub(double3 a, double3 b)
+	inline	double3 sub(const double3& a, const double3& b)
 	{
-		a.x = a.x - b.x;
-		a.y = a.y - b.y;
-		a.z = a.z - b.z;
-
-		return a;
+		double3 d = { a.x - b.x,
+			a.y - b.y,
+			a.z - b.z };
+		return d;
 	}
 
 	__device__
-	inline	double dot(double3 a, double3 b)
+	inline	double dot(const double3& a, const double3& b)
 	{
 		return a.x * b.x + a.y * b.y + a.z * b.z;
 	}
 
 	__device__
-	inline	int sgn(double _d)
+	inline	int sgn(const double& _d)
 	{
 		return (_d > 0) ? 1 : (
 			(_d < 0) ? -1 : 0
@@ -62,14 +60,14 @@ namespace Gpu_Rvd{
 	}
 
 	__device__
-	inline	double m_fabs(double x)
+	inline	double m_fabs(const double& x)
 	{
 		if (x > 0) return x;
 		else return -x;
 	}
 
 	__device__
-		inline double3 cross(double3 v1, double3 v2){
+		inline double3 cross(const double3& v1, const double3& v2){
 		double3 d = {
 			v1.y*v2.z - v1.z*v2.y,
 			v1.z*v2.x - v1.x*v2.z,
@@ -79,18 +77,18 @@ namespace Gpu_Rvd{
 	}
 
 	__device__
-		inline double length(double3 v){
+		inline double length(const double3& v){
 		return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 	}
 	__device__
-	inline double computeTriangleArea(double3 v1, double3 v2, double3 v3)
+	inline double computeTriangleArea(const double3& v1, const double3& v2, const double3& v3)
 	{
 		return 0.5 * length(cross(sub(v2, v1), sub(v3, v1)));
 	}
 
 	__device__
 	inline void computeTriangleCentriod(
-		double3 p, double3 q, double3 r, double a, double b, double c,
+		const double3& p, const double3& q, const  double3& r, //double a, double b, double c,
 		double3& Vg, double& V
 		)
 	{
