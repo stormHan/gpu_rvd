@@ -22,7 +22,7 @@ int main(int argc, char** argv){
 	Process::initialize();
 
 	srand((unsigned int)time(0));
-	const index_t iteration = 100;
+	const index_t iteration = 1;
 
 	StopWatch S("total task");
 	std::vector<std::string> filenames;
@@ -46,22 +46,33 @@ int main(int argc, char** argv){
 		fprintf(stderr, "cannot load the mesh from the %s path", mesh_filename);
 		return 1;
 	}
-	//points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\out.eobj";
-	points_filename = "D:\\Project\\Models\\eight.obj";
+	points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\before.xyz";
+	//points_filename = "D:\\Project\\Models\\S2.obj";
+	std::vector<int> sample_facet;
 
 	/*if (!points_load_obj(points_filename, Points_in)){
 		fprintf(stderr, "cannot load the points from the %s path", points_filename);
 		return 1;
 	}*/
-	M_in.init_samples(Points_in, 30000);
 	
+	if (!points_load_xyz(points_filename, Points_in, sample_facet)){
+		fprintf(stderr, "cannot load the points from the %s path", points_filename);
+		return 1;
+	}
+	//sample_facet.resize(Points_in.get_vertex_nb());
+	//M_in.init_samples(Points_in, 1000, sample_facet);
+	
+	if (!points_save_xyz(output_filename, Points_in, sample_facet)){
+		std::cerr << "cannot save the points data" << std::endl;
+		return 1;
+	}
 	/*if (!points_save(output_filename, Points_in)){
 		std::cerr << "cannot save the points data" << std::endl;
 		return 1;
 	}*/
 	
 	//default settings: k = 20, store_mode
-	CudaRestrictedVoronoiDiagram rvd(&M_in, &Points_in, iteration);
+	CudaRestrictedVoronoiDiagram rvd(&M_in, &Points_in, iteration, sample_facet);
 	rvd.compute_Rvd();
 
 
