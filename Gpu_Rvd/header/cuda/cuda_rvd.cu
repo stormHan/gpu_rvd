@@ -498,7 +498,7 @@ namespace Gpu_Rvd{
 		has_visited[has_visited_nb++] = to_visit[idx][0];
 		
 		
-		//index_t counter = 0;
+		index_t counter = 0;
 		while (to_visit_pos){
 			index_t current_seed = to_visit[idx][to_visit_pos - 1];
 			to_visit_pos--;
@@ -519,7 +519,8 @@ namespace Gpu_Rvd{
 				retdata
 				);
 			
-			
+			//MyAtomicAdd(&retdata[tid], 1);
+			//MyAtomicAdd(&retdata[320], 1);
 			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
@@ -549,7 +550,7 @@ namespace Gpu_Rvd{
 			current_polygon.vertex[0].x = v1.x; current_polygon.vertex[0].y = v1.y; current_polygon.vertex[0].z = v1.z; current_polygon.vertex[0].w = 1.0;
 			current_polygon.vertex[1].x = v2.x; current_polygon.vertex[1].y = v2.y; current_polygon.vertex[1].z = v2.z; current_polygon.vertex[1].w = 1.0;
 			current_polygon.vertex[2].x = v3.x; current_polygon.vertex[2].y = v3.y; current_polygon.vertex[2].z = v3.z; current_polygon.vertex[2].w = 1.0;
-			//counter++;
+			counter++;
 		}
 		// end debug
 		/*
@@ -769,8 +770,8 @@ namespace Gpu_Rvd{
 			<< " Bytes)"
 			<< std::endl
 			<< "Starting cudaMalloc..\n";
-		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
-		//host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
+		//host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
+		host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
 		//cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
 		//cudaMemcpyToSymbol(g_seeds_information, &dev_seeds_info_, sizeof(double*), size_t(0), cudaMemcpyHostToDevice);
 		//cudaMalloc((void**)&dev_seeds_poly_nb, INT_SIZE * points_nb_);
@@ -789,8 +790,8 @@ namespace Gpu_Rvd{
 			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
 
 			//Output result.
-			//cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
-			cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
+			cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
+			//cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
 			CheckCUDAError("Allocating device memory");
 
 			//Copy
@@ -853,8 +854,8 @@ namespace Gpu_Rvd{
 
 	__host__
 	void CudaRestrictedVoronoiDiagram::copy_back(){
-		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
-		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
+		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
+		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
 		CheckCUDAError("copy back");
 	}
 
