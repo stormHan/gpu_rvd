@@ -39,6 +39,11 @@ namespace Gpu_Rvd{
 	 * \brief save points to .xyz file
 	 */
 	bool points_save_xyz(const std::string& filename, Points& p,const std::vector<int>& sample_facet);
+
+	/**
+	 * \brief loads the pointset's position  from .xyz file
+	 */
+	bool points_load_xyz(const std::string& filename, Points& P, std::vector<int>& sample_facet);
 }
 
 #endif /* MESH_MESH_IO_H */
