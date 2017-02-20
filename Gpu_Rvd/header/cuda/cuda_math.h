@@ -87,6 +87,17 @@ namespace Gpu_Rvd{
 	}
 
 	__device__
+		inline double computeTriangleArea2(const double3& v1, const double3& v2, const double3& v3){
+		double a = distance(v1, v2);
+		double b = distance(v2, v3);
+		double c = distance(v3, v1);
+
+		double s = double(0.5) * (a + b + c);
+		double A2 = s * (s - a) * (s - b) * (s - c);
+		return sqrt(A2);
+	}
+
+	__device__
 	inline void computeTriangleCentriod(
 		const double3& p, const double3& q, const  double3& r, //double a, double b, double c,
 		double3& Vg, double& V
@@ -105,7 +116,7 @@ namespace Gpu_Rvd{
 		Vg.y = s * (wp * p.y + wq * q.y + wr * r.y);
 		Vg.z = s * (wp * p.z + wq * q.z + wr * r.z);*/
 
-		V = computeTriangleArea(p, q, r);
+		V = computeTriangleArea2(p, q, r);
 		Vg.x = (p.x + q.x + r.x) / 3.0 * V;
 		Vg.y = (p.y + q.y + r.y) / 3.0 * V;
 		Vg.z = (p.z + q.z + r.z) / 3.0 * V;
