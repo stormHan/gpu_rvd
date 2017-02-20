@@ -156,7 +156,7 @@ namespace Gpu_Rvd{
 		/*
 		 * \brief Sample random points in triangle surface.
 		 */
-		void init_samples(Points& p, index_t nb);
+		void init_samples(Points& p, index_t nb, std::vector<int>& sample_facet);
 	private:
 		
 		std::vector<index_t>	facet_;
