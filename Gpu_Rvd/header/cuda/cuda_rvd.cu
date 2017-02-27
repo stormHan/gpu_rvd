@@ -140,6 +140,7 @@ namespace Gpu_Rvd{
 
 			total_weight = 0.0;
 			centriodTimesWeight = { 0.0, 0.0, 0.0 };
+			//MyAtomicAdd(&retdata[0], 1.0);
 		}
 		MyAtomicAdd(&retdata[current_seed * 4 + 0], current_posTimesWeight.x);
 		MyAtomicAdd(&retdata[current_seed * 4 + 1], current_posTimesWeight.y);
@@ -518,9 +519,8 @@ namespace Gpu_Rvd{
 				current_seed,
 				retdata
 				);
-			
-			//MyAtomicAdd(&retdata[tid], 1);
-			//MyAtomicAdd(&retdata[320], 1);
+			/*MyAtomicAdd(&retdata[current_seed], 1);
+			MyAtomicAdd(&retdata[1000], 1);*/
 			//store_info(tid, current_seed, current_polygon, &retdata[tid * 400 + counter * 40]);
 			//Propagate to adjacent seeds
 			for (index_t v = 0; v < current_polygon.vertex_nb; ++v)
@@ -690,11 +690,10 @@ namespace Gpu_Rvd{
 		x_->clear();
 
 		for (int i = 0; i < points_nb_; ++i){
-			if (fabs(host_ret_[i * 4 + 3]) >= 1e-12){
 				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
-			}
+			
 			x_->add_vertexd(&host_ret_[i * 4], dimension_);
 		}
 
