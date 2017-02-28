@@ -10,11 +10,17 @@ namespace Gpu_Rvd{
 	CudaRestrictedVoronoiDiagram::CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, std::vector<int> sample_facet, int k){
 		vertex_ = m->v_ptr();
 		vertex_nb_ = m->get_vertex_nb();
-		points_ = p->v_ptr();
-		points_nb_ = p->get_vertex_nb();
 		facets_ = m->f_ptr();
 		facet_nb_ = m->get_facet_nb();
-		
+		//points_ = p->v_ptr();
+		points_nb_ = p->get_vertex_nb();
+		points_ = (double*)malloc(points_nb_ * 3 * sizeof(double));
+		for (index_t t = 0; t < points_nb_; ++t){
+			points_[t * 3 + 0] = p->get_vertexd(t)[0];
+			points_[t * 3 + 1] = p->get_vertexd(t)[1];
+			points_[t * 3 + 2] = p->get_vertexd(t)[2];
+		}
+
 		k_ = k;
 		points_nn_ = (index_t*)malloc(sizeof(index_t) * k_ * points_nb_);
 		facets_nn_ = (index_t*)malloc(sizeof(index_t) * facet_nb_);
@@ -74,7 +80,11 @@ namespace Gpu_Rvd{
 			free(facets_nn_);
 			facets_nn_ = nil;
 		}
-
+		
+		if (points_ != nil){
+			free(points_);
+			points_ = nil;
+		}
 		//delete knn_;
 	}
 
@@ -693,13 +703,20 @@ namespace Gpu_Rvd{
 				host_ret_[i * 4 + 0] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 1] /= host_ret_[i * 4 + 3];
 				host_ret_[i * 4 + 2] /= host_ret_[i * 4 + 3];
-			
 			x_->add_vertexd(&host_ret_[i * 4], dimension_);
 		}
 
+		const double* pdata;
+		for (int i = 0; i < points_nb_; ++i){
+			pdata = x_->get_vertexd(i);
+			points_[i * 3 + 0] = pdata[0];
+			points_[i * 3 + 1] = pdata[1];
+			points_[i * 3 + 2] = pdata[2];
+		}
+		std::vector<int> sample_facet(points_nb_);
 		if (is_store_){
-			std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".eobj";
-			points_save(name, *x_);
+			std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".xyz";
+			points_save_xyz(name, *x_, sample_facet);
 			store_filename_counter_++;
 		}
 	}
@@ -709,12 +726,29 @@ namespace Gpu_Rvd{
 		CudaStopWatcher watcher("compute_rvd_global");
 		watcher.start();
 
-		allocate_and_copy(GLOBAL_MEMORY);
+		//allocate_and_copy(GLOBAL_MEMORY);
+		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
+		//Allocate
+		//Input data.
+		cudaMalloc((void**)&dev_vertex_, DOUBLE_SIZE * vertex_nb_ * dimension_);
+		cudaMalloc((void**)&dev_points_, DOUBLE_SIZE * points_nb_ * dimension_);
+		cudaMalloc((void**)&dev_facets_, sizeof(index_t) * facet_nb_ * dimension_);
+		cudaMalloc((void**)&dev_points_nn_, sizeof(index_t) * points_nb_ * k_);
+		cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
 
+		//Output result.
+		//cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
+		//Copy
+		cudaMemcpy(dev_vertex_, vertex_, DOUBLE_SIZE * vertex_nb_ * dimension_, cudaMemcpyHostToDevice);
+		//cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
+		cudaMemcpy(dev_facets_, facets_, sizeof(index_t) * facet_nb_ * dimension_, cudaMemcpyHostToDevice);
+		CheckCUDAError("Allocating device memory");
+
+		
 		for (index_t t = 0; t < iter_nb_; ++t){
-			knn_search(); 
+			cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
 			
-			{
+			knn_search(); 
 				CudaStopWatcher iter_watcher("iteration");
 				iter_watcher.start();				
 				cudaMemcpy(dev_points_, points_, DOUBLE_SIZE * points_nb_ * dimension_, cudaMemcpyHostToDevice);
@@ -746,13 +780,13 @@ namespace Gpu_Rvd{
 				iter_watcher.stop();
 				iter_watcher.synchronize();
 				iter_watcher.print_elaspsed_time(std::cout);
-			}
+			
 		}
 		
 		watcher.stop();
 		watcher.synchronize();
 		watcher.print_elaspsed_time(std::cout);
-		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\RVD_" + String::to_string(store_filename_counter_) + ".xyz";
+		std::string name = "C:\\Users\\JWhan\\Desktop\\DATA\\before5.xyz";
 		points_save_xyz(name, *x_, sample_facet_);
 		free_memory();
 	}
@@ -769,8 +803,8 @@ namespace Gpu_Rvd{
 			<< " Bytes)"
 			<< std::endl
 			<< "Starting cudaMalloc..\n";
-		//host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
-		host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
+		host_ret_ = (double*)malloc(sizeof(double) * points_nb_ * (dimension_ + 1));
+		//host_ret_ = (double*)malloc(sizeof(double) * facet_nb_ * 10 * 40);
 		//cudaMalloc((void**)&dev_seeds_info_, DOUBLE_SIZE * points_nb_ * (dimension_ + 1));
 		//cudaMemcpyToSymbol(g_seeds_information, &dev_seeds_info_, sizeof(double*), size_t(0), cudaMemcpyHostToDevice);
 		//cudaMalloc((void**)&dev_seeds_poly_nb, INT_SIZE * points_nb_);
@@ -789,8 +823,8 @@ namespace Gpu_Rvd{
 			cudaMalloc((void**)&dev_facets_nn_, sizeof(index_t) * facet_nb_ * 1);
 
 			//Output result.
-			cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
-			//cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
+			//cudaMalloc((void**)&dev_ret_, sizeof(double) *  facet_nb_ * 10 * 40);
+			cudaMalloc((void**)&dev_ret_, sizeof(double) * points_nb_ * 4);
 			CheckCUDAError("Allocating device memory");
 
 			//Copy
@@ -853,8 +887,8 @@ namespace Gpu_Rvd{
 
 	__host__
 	void CudaRestrictedVoronoiDiagram::copy_back(){
-		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
-		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
+		//cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * facet_nb_ * 10 * 40, cudaMemcpyDeviceToHost);
+		cudaMemcpy(host_ret_, dev_ret_, sizeof(double) * points_nb_ * 4, cudaMemcpyDeviceToHost);
 		CheckCUDAError("copy back");
 	}
 
