@@ -143,7 +143,7 @@ namespace Gpu_Rvd{
 		//CPU data
 		const double* vertex_;
 		index_t vertex_nb_;
-		const double* points_;
+		double* points_;
 		index_t points_nb_;
 		const index_t* facets_;
 		index_t facet_nb_;
