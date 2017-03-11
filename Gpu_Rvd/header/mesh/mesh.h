@@ -71,6 +71,11 @@ namespace Gpu_Rvd{
 		void add_vertexd(const vec3& p);
 
 		/*
+		 * \brief Sets the vertex value by index
+		 */
+		void set_vertex(const double* value, index_t dimension, index_t v);
+
+		/*
 		 * \breif Gets the vertex number.
 		 */
 		const index_t get_vertex_nb() const{
