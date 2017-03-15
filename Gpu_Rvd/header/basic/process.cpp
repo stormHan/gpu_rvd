@@ -402,6 +402,7 @@ namespace Gpu_Rvd{
 			if (!multithreading_enabled_ || thread_manager_ == nil) {
 				return 1;
 			}
+			//return 1;
 			return max_threads_;
 			/*
 			// commented out for now, since under Windows,
