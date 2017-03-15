@@ -24,7 +24,7 @@ int main(int argc, char** argv){
 	srand((unsigned int)time(0));
 	StopWatch S("total task");
 	for (int iter = 0; iter < 1; ++iter){
-		const index_t iteration = 100;
+		const index_t iteration = 1;
 		std::vector<std::string> filenames;
 		if (!Cmd::parse_argu(argc, argv, filenames)){
 			fprintf(stderr, "failed to parse the argument!");
@@ -46,7 +46,7 @@ int main(int argc, char** argv){
 			fprintf(stderr, "cannot load the mesh from the %s path", mesh_filename);
 			return 1;
 		}
-		points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\dancer_60000.xyz";
+		points_filename = "C:\\Users\\JWhan\\Desktop\\DATA\\input.xyz";
 		//points_filename = "D:\\Project\\Models\\S2.obj";
 		std::vector<int> sample_facet;
 
@@ -55,12 +55,12 @@ int main(int argc, char** argv){
 			return 1;
 			}*/
 
-		/*if (!points_load_xyz(points_filename, Points_in, sample_facet)){
+		if (!points_load_xyz(points_filename, Points_in, sample_facet)){
 			fprintf(stderr, "cannot load the points from the %s path", points_filename);
 			return 1;
-			}*/
+			}
 		//sample_facet.resize(Points_in.get_vertex_nb());
-		M_in.init_samples(Points_in, 7200, sample_facet);
+		M_in.init_samples(Points_in, 30000, sample_facet);
 
 		if (!points_save_xyz(output_filename, Points_in, sample_facet)){
 			std::cerr << "cannot save the points data" << std::endl;
