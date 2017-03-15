@@ -19,6 +19,8 @@
 #include "cuda.h"
 #include <fstream>
 #include <iomanip>
+#include <stack>
+#include <unordered_set>
 
 namespace Gpu_Rvd{
 
@@ -103,6 +105,51 @@ namespace Gpu_Rvd{
 		 */
 		void print_return_data(const std::string filename) const;
 
+		/**
+		 * \brief checks if all the facet is finished.
+		 */
+		bool check_task_finished(std::vector<std::stack<int>> to_visited){
+			for (index_t t = 0; t < facet_nb_; ++t){
+				if (to_visited[t].size() > 0) return false;
+			}
+			return true;
+		}
+		
+		/**
+		 * \brief insert the to_visited stack for the next Kernel.
+		 */
+		void insert_to_visited(int* retidx, index_t data_size){
+			for (index_t t = 0; t < facet_nb_; ++t){
+				for (index_t i = 0; i < data_size; ++i){
+					for (index_t ii = 0; ii < data_size; ++ii){
+						int cur = retidx[(t * data_size + i) * data_size + ii];
+						if (cur < -1) break;
+						if (cur == -1) continue;
+						if (has_visited[t].find(cur) == has_visited[t].end()){
+							has_visited[t].insert(cur);
+							to_visited[t].push(cur);
+						}
+					}
+				}
+			}
+		}
+
+		/**
+		 *\brief Puts the data into *next from to_visited stack
+		 */
+		void go_next(int* next, index_t data_size){
+			for (int i = 0; i < facet_nb_; ++i){
+				index_t c = 0;
+				while (!to_visited[i].empty() && c < data_size){
+					next[i * data_size + 1 + c] = to_visited[i].top();
+					to_visited[i].pop();
+					c++;
+				}
+				next[i * data_size] = c;
+				c = 0;
+			}
+		}
+
 		/*
 		 * \brief Checks if some manipulation get error.
 		 */
@@ -163,6 +210,8 @@ namespace Gpu_Rvd{
 		index_t* dev_facets_nn_;
 		double* dev_ret_;
 		double* host_ret_;
+		int* dev_retidx;
+		int* host_retidx;
 
 		double* dev_seeds_info_;
 		int*	dev_seeds_poly_nb;
@@ -179,6 +228,9 @@ namespace Gpu_Rvd{
 		int store_filename_counter_;
 
 		std::vector<int> sample_facet_;
+		std::vector<std::stack<int>> to_visited;
+		std::vector<std::unordered_set<int>> has_visited;
+
 	};
 
 }
