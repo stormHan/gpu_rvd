@@ -20,7 +20,7 @@ namespace Gpu_Rvd{
 #define MAX_PART_OF_FREE_MEMORY_USED   0.9
 #define BLOCK_DIM					   16
 
-	const index_t CUDA_Stack_size = 60;
+	const index_t CUDA_Stack_size = 20;
 
 	//Set cuda global variables.
 	//Adds the RVD information to seeds_information to iterate 
