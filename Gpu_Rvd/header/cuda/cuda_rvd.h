@@ -31,7 +31,7 @@ namespace Gpu_Rvd{
 		 * \brief if the Mesh[m] and Points[p] store the nn in themselves, we can construct the 
 		 *		  the RVD with Mesh and Points own.
 		 */
-		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, std::vector<int> sample_facet, int k = 20);
+		CudaRestrictedVoronoiDiagram(Mesh* m, Points* p, int iter, std::vector<int> sample_facet, int k = 20, int f_k = 1);
 
 		/*
 		 * \brief Construts the RVD with Mesh, Points and NN information.
@@ -110,7 +110,8 @@ namespace Gpu_Rvd{
 		 */
 		bool check_task_finished(std::vector<std::stack<int>> to_visited){
 			for (index_t t = 0; t < facet_nb_; ++t){
-				if (to_visited[t].size() > 0) return false;
+				if (to_visited[t].size() > 0) 
+					return false;
 			}
 			return true;
 		}
@@ -120,9 +121,9 @@ namespace Gpu_Rvd{
 		 */
 		void insert_to_visited(int* retidx, index_t data_size){
 			for (index_t t = 0; t < facet_nb_; ++t){
-				for (index_t i = 0; i < data_size; ++i){
+				for (index_t i = 0; i < 5; ++i){
 					for (index_t ii = 0; ii < data_size; ++ii){
-						int cur = retidx[(t * data_size + i) * data_size + ii];
+						int cur = retidx[(t * 5 + i) * data_size + ii];
 						if (cur < -1) break;
 						if (cur == -1) continue;
 						if (has_visited[t].find(cur) == has_visited[t].end()){
@@ -196,6 +197,7 @@ namespace Gpu_Rvd{
 		index_t facet_nb_;
 
 		//Knn 
+		index_t f_k_;
 		index_t k_;
 		index_t* points_nn_;
 		index_t* facets_nn_;
