@@ -27,6 +27,10 @@ namespace Gpu_Rvd{
 	*/
 	bool mesh_load_obj(const std::string filename, Mesh& M);
 
+	/**
+	 *\brief mesh_save_obj
+	 */
+	bool mesh_save_obj(const std::string filename, const Mesh& M);
 
 	bool points_load_obj(const std::string filename, Points& M);
 	/*
